@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { documentTypes } from "../shared/templates.js";
 const text = z.string().trim().min(1).max(200);
 const long = z.string().trim().max(30000);
 const date = z.iso.date();
@@ -67,16 +68,7 @@ export const schemas = {
   updates: z.object({ content: long.min(1), date }),
   documents: z.object({
     title: text,
-    type: z.enum([
-      "Project plan",
-      "Progress report",
-      "Proposal",
-      "Project charter",
-      "Risk register",
-      "Procurement plan",
-      "Meeting minutes",
-      "Closure report",
-    ]),
+    type: z.enum(documentTypes),
     content: long.default(""),
   }),
 };

@@ -30,6 +30,16 @@ Data persists in `.data/` (or the absolute `DATA_DIR`). This directory is ignore
 - PDF and DOCX summaries / individual documents; XLSX workbook containing budgets, actual expenses, tasks, risks, updates and documents. Export access requires the same project permissions as viewing.
 - Responsive public pages and application screens, empty/loading/error states and text search.
 
+## Generate project management templates
+
+Open **Templates** in the sidebar or inside a project workspace. The library contains 16 templates: project plan, proposal, charter, Terms of Reference, WBS, work plan, business case, budget, risk register, procurement plan, monitoring & evaluation plan, meeting minutes, weekly report, monthly report, lessons-learned report and closure report.
+
+Choose a template, optionally select a project, and fill in the template-specific details. **Generate template** produces an editable draft. Save it to the project's Documents tab for PDF / Word export, or download HTML / text directly without a project. These are rule-based templates, independent of the AI provider. Unknown information stays in brackets; approvals, market prices and verified achievements are never invented. Reporting dates filter recorded progress updates; financial and task snapshots are explicitly cumulative current data.
+
+The standalone edition has a **Templates** button at the top and the same library. Download `standalone/projectmanager-ai-africa.zip`, extract it and open the HTML in Chrome. To move records from an older file, export a JSON backup from that file and restore it in the new edition. File locations can affect browser storage. The local edition has no account authentication or server synchronisation.
+
+Template definitions and generation logic live in `shared/templates.ts`. `npm run build` synchronises that engine into the self-contained HTML. `npm run package:standalone` also creates the downloadable ZIP (Python 3 is needed for ZIP packaging only). Keep the generated HTML and ZIP in sync when publishing updates.
+
 ## Enable server-side AI
 
 Set `AI_API_KEY` to your OpenAI credential using your host's secure environment settings (or local `.env`). Set `AI_MODEL` to a model your account supports; the default is `gpt-4.1-mini`. The server calls `https://api.openai.com/v1/chat/completions`; allow outbound HTTPS to `api.openai.com`. Never use a `VITE_`-prefixed key. Keys are never returned by the API or bundled into frontend assets. The managed environment supports proxy injection for `AI_API_KEY` to this host.

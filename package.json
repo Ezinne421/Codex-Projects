@@ -5,11 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "node --env-file-if-exists=.env --import tsx server/index.ts",
-    "build": "tsc --noEmit && vite build",
+    "build": "node scripts/sync-standalone.mjs && tsc --noEmit && vite build",
     "start": "node --env-file-if-exists=.env --import tsx server/index.ts",
     "test": "node --import tsx --test tests/*.test.ts",
     "test:e2e": "playwright test",
-    "format": "prettier --write src server tests docs README.md *.ts *.json index.html .env.example"
+    "format": "prettier --write src server shared scripts tests docs README.md *.ts *.json index.html",
+    "sync:standalone": "node scripts/sync-standalone.mjs",
+    "package:standalone": "node scripts/sync-standalone.mjs && python3 scripts/package-standalone.py"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.0",

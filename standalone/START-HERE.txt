@@ -1,0 +1,20 @@
+PROJECTMANAGER AI AFRICA — LOCAL HTML EDITION
+
+1. Extract this ZIP (in Windows, right-click it and choose Extract All).
+2. Open projectmanager-ai-africa.html with Google Chrome.
+3. Click Templates at the top of the application.
+4. Choose a project, or leave it as a blank template.
+5. Click Use template, enter your information, then Generate template.
+6. Edit the generated content, then save it to project documents or download it.
+
+The library contains 16 project management templates. It needs no internet,
+installation, online account or AI key. These are structured templates populated
+from your inputs and saved records, not live AI-generated assessments.
+
+If you used an older file, open that file first and click Export backup on the
+home screen. In this edition use Restore backup to bring your projects over.
+Browser storage may depend on the file location. Keep regular JSON backups.
+
+Local records are stored only in this browser profile. There is no login-based
+security or online synchronisation. Use the full server app for protected team
+workspaces. HTML and text exports are available; Chrome Print can save as PDF.

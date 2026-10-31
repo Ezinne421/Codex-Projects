@@ -41,6 +41,8 @@ import {
 const FinanceChart = lazy(() => import("./FinanceChart"));
 import { api, today, money, type Bundle, type Project } from "./api";
 import "./styles.css";
+import Templates from "./Templates";
+import { documentTypes } from "../shared/templates";
 const industries = [
   "Agriculture",
   "Construction",
@@ -59,6 +61,7 @@ const nav = [
   ["Schedule", CalendarDays],
   ["Risk Management", ShieldAlert],
   ["Reports & Documents", FileText],
+  ["Templates", Layers],
 ] as const;
 type Field = {
   name: string;
@@ -412,16 +415,7 @@ function App() {
           {
             name: "type",
             label: "Document type",
-            options: [
-              "Project plan",
-              "Progress report",
-              "Proposal",
-              "Project charter",
-              "Risk register",
-              "Procurement plan",
-              "Meeting minutes",
-              "Closure report",
-            ],
+            options: [...documentTypes],
           },
           { name: "content", label: "Document content", type: "textarea" },
         ],
@@ -952,6 +946,7 @@ function App() {
                       "Risks",
                       "Updates",
                       "Documents",
+                      "Templates",
                       "AI Planner",
                     ].map((t) => (
                       <button
@@ -1432,8 +1427,37 @@ function App() {
                       </div>
                     </section>
                   )}
+                  {tab === "Templates" && (
+                    <Templates
+                      projects={projects}
+                      fixedProject={active}
+                      onCreateProject={() => createProject()}
+                      onSaved={async () => {
+                        await refresh();
+                        notify(
+                          "Template saved. Open Documents to export PDF or Word.",
+                        );
+                      }}
+                    />
+                  )}
                   {tab === "Documents" && (
                     <>
+                      <div className="planner-intro">
+                        <Layers size={25} />
+                        <div>
+                          <h3>Start from a project management template</h3>
+                          <p>
+                            Generate a charter, proposal, WBS, work plan, report
+                            and more. No AI key required.
+                          </p>
+                          <button
+                            className="button secondary"
+                            onClick={() => setTab("Templates")}
+                          >
+                            Browse templates
+                          </button>
+                        </div>
+                      </div>
                       <section className="panel">
                         <PanelHead
                           title="Reports & documents"
@@ -1860,6 +1884,15 @@ function App() {
                     </button>
                   </div>
                 </>
+              ) : view === "Templates" ? (
+                <Templates
+                  projects={projects}
+                  onCreateProject={() => createProject()}
+                  onSaved={async () => {
+                    await refresh();
+                    notify("Template saved to project documents.");
+                  }}
+                />
               ) : view === "Settings" ? (
                 <>
                   <PageTitle

@@ -4,6 +4,7 @@ export default defineConfig({
   timeout: 90000,
   workers: 1,
   use: {
+    actionTimeout: 15000,
     baseURL: "http://127.0.0.1:3100",
     launchOptions: {
       executablePath: "/usr/bin/chromium",
