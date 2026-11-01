@@ -1,4 +1,4 @@
-import { resolve } from "node:path";
+import { pdfFont } from "./pdf-font.js";
 import express, {
   type Request,
   type Response,
@@ -602,10 +602,8 @@ app.get("/api/projects/:id/export/:format", async (req, res) => {
   const name = `project-${data.project.id}`;
   if (format === "pdf") {
     res.attachment(name + ".pdf");
-    const pdf = new PDFDocument({
-      margin: 50,
-      font: resolve("server/fonts/DejaVuSans.ttf"),
-    });
+    const pdf = new PDFDocument({ margin: 50 });
+    pdf.font(pdfFont);
     pdf.on("error", () => res.destroy());
     pdf.pipe(res);
     pdf.fontSize(11).text(content);

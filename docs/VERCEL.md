@@ -1,6 +1,6 @@
 # Deploy the full application on Vercel
 
-This deploys the React app plus the Express API, with real online accounts and persistent PostgreSQL records. It does **not** deploy the browser-only HTML edition. `vercel.json` builds the frontend into `dist`, routes `/api/*` to `api/index.ts`, and includes the Unicode font needed for PDF exports.
+This deploys the React app plus the Express API, with real online accounts and persistent PostgreSQL records. It does **not** deploy the browser-only HTML edition. `vercel.json` builds the frontend into `dist`, routes `/api/*` to `api/index.ts`, and embeds the licensed Unicode font in a server-only module for reliable PDF exports.
 
 ## Account and database prerequisites
 

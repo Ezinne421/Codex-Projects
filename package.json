@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --env-file-if-exists=.env --import tsx server/index.ts",
-    "build": "node scripts/sync-standalone.mjs && tsc --noEmit && vite build",
+    "build": "node scripts/embed-font.mjs && node scripts/sync-standalone.mjs && tsc --noEmit && vite build",
     "start": "node --env-file-if-exists=.env --import tsx server/index.ts",
     "test": "node --import tsx --test tests/*.test.ts",
     "test:e2e": "playwright test",

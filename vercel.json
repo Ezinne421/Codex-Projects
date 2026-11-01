@@ -5,12 +5,14 @@
   "outputDirectory": "dist",
   "functions": {
     "api/index.ts": {
-      "maxDuration": 60,
-      "includeFiles": "server/fonts/**"
+      "maxDuration": 60
     }
   },
   "rewrites": [
-    { "source": "/api/:path*", "destination": "/api" },
+    {
+      "source": "/api/:path*",
+      "destination": "/api/index"
+    },
     {
       "source": "/((?!api(?:/|$)|assets(?:/|$)).*)",
       "destination": "/index.html"
