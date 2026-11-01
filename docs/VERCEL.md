@@ -4,7 +4,7 @@ This deploys the React app plus the Express API, with real online accounts and p
 
 ## Account and database prerequisites
 
-You need access to your Vercel account and a **dedicated, empty managed PostgreSQL database**. The application creates its own authentication tables and one private schema per organisation. Use a dedicated database and role that can create tables and schemas; do not point the application at another product's existing database.
+You need access to your Vercel account and a **managed PostgreSQL database**, including an existing Supabase project. The application creates its own private `pm_ai_africa_auth` schema for accounts and one private schema per organisation. It does not use or modify Supabase public tables. Use a privileged server-side connection that can create schemas and tables; never use an anonymous browser key as a database credential. A separate database remains preferable where operational isolation is needed.
 
 The local onboarding workspace is not signed into Vercel and contains no database connection. A prepared repository is not a live deployment. Never put connection strings, passwords or access tokens into chat, GitHub files or the frontend.
 
@@ -18,6 +18,12 @@ The local onboarding workspace is not signed into Vercel and contains no databas
 6. Click **Deploy**. The application refuses to fall back to temporary SQLite files on Vercel if `DATABASE_URL` is missing. If a required variable changes, redeploy so it reaches the running functions.
 7. Open the actual URL reported by Vercel. Verify `/api/health` returns `{"status":"ok"}`. A database outage or missing configuration must be resolved before inviting users; a static homepage alone does not demonstrate readiness.
 
+## Connecting an existing Supabase project
+
+In the selected Supabase project's **Connect** dialog, choose its PostgreSQL transaction pooler connection string. Replace the password placeholder with the existing database password, then enter the complete string as `DATABASE_URL` in Vercel's encrypted Production environment settings. Never paste it into chat or source files. Do not reset a shared database password just to connect this app; doing so could break other services. The connection must use a database owner/admin role with permission to create schemas, and preserve TLS verification.
+
+This app uses its existing server-managed accounts; using Supabase for PostgreSQL does not automatically migrate accounts to Supabase Auth. Existing Supabase public data remains separate. No new Supabase project is created when reusing the connection.
+
 ## Acceptance checks on the live deployment
 
 - Register an account, create a project, record budget lines and expenses, and check the totals.
@@ -28,7 +34,7 @@ The local onboarding workspace is not signed into Vercel and contains no databas
 
 ## Runtime design and operations
 
-PostgreSQL connections are leased per HTTP request, so concurrent registration and project transactions do not share a transaction. Authentication records live in `public`; organisation records live in server-selected `pm_org_<uuid>` schemas. Parameterised SQL and server-side membership checks scope access. This is schema isolation, not a claim of PostgreSQL row-level-security policies.
+PostgreSQL connections are leased per HTTP request, so concurrent registration and project transactions do not share a transaction. Authentication records live in private `pm_ai_africa_auth`; organisation records live in server-selected `pm_org_<uuid>` schemas. Parameterised SQL and server-side membership checks scope access. These schemas revoke public/API-role privileges and enable row-level security without public-access policies. The privileged server role owns the tables and uses server-side membership checks; the Supabase browser API must not access these records.
 
 Rate-limit counters are also stored in PostgreSQL, so separate Vercel instances and cold starts share limits. Session tokens remain hashed; password resets expire and revoke existing sessions. Connections preserve provider TLS verification; no certificate checks are disabled. The function has a 60-second limit; AI requests time out earlier so failures can be reported cleanly.
 

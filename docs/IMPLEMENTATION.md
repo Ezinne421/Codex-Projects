@@ -1,6 +1,6 @@
 # Hosted deployment update
 
-The full app now supports managed PostgreSQL for Vercel in addition to the original SQLite development mode described below. `DATABASE_URL` selects PostgreSQL; Vercel requires it and will not use ephemeral local storage. HTTP requests lease independent database connections and transactions. Auth records and shared rate limits live in public tables, with each organisation’s project records in a separate server-selected schema. See [Vercel deployment](VERCEL.md) for configuration and live validation still required. Existing local records are not automatically migrated.
+The full app now supports managed PostgreSQL for Vercel in addition to the original SQLite development mode described below. `DATABASE_URL` selects PostgreSQL; Vercel requires it and will not use ephemeral local storage. HTTP requests lease independent database connections and transactions. Auth records and shared rate limits live in private `pm_ai_africa_auth` tables, with each organisation’s project records in a separate server-selected schema. See [Vercel deployment](VERCEL.md) for configuration and live validation still required. Existing local records are not automatically migrated.
 
 # Phase 1 implementation plan
 
