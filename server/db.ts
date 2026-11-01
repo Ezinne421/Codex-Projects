@@ -3,6 +3,7 @@ import { mkdirSync, chmodSync } from "node:fs";
 import { resolve, join } from "node:path";
 import type { Request, Response, NextFunction } from "express";
 import { authSchema, tenantSchema } from "./schema.js";
+import { verifiedDatabaseUrl } from "./database-url.js";
 export const dataDir = resolve(process.env.DATA_DIR || ".data");
 const pgMode = !!process.env.DATABASE_URL || process.env.DB_TEST_PGLITE === "1";
 const testPg = process.env.DB_TEST_PGLITE === "1";
@@ -84,7 +85,7 @@ const rootReady = (async () => {
       return n;
     });
     pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString: verifiedDatabaseUrl(process.env.DATABASE_URL!),
       max: 5,
       connectionTimeoutMillis: 10000,
       idleTimeoutMillis: 20000,
@@ -282,7 +283,12 @@ export async function requestDatabase(
     res.once("finish", finish);
     res.once("close", finish);
     scopes.run(scope, () => next());
-  } catch {
+  } catch (error) {
+    const failure = error as { code?: string; name?: string };
+    console.error(
+      "Persistent database unavailable",
+      failure.code || failure.name || "Error",
+    );
     res.status(503).json({
       error:
         "Persistent database is unavailable. Check the server database configuration.",
