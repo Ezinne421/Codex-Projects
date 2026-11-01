@@ -1,0 +1,9 @@
+.git
+node_modules
+.data
+.env*
+.vercel
+dist
+test-results
+playwright-report
+standalone/*.zip

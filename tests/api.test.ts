@@ -50,7 +50,7 @@ const project = {
 after(async () => {
   await new Promise<void>((r) => server.close(() => r()));
   const { authDb } = await import("../server/db.js");
-  authDb.close();
+  await authDb.close();
   rmSync(dir, { recursive: true, force: true });
 });
 test("MVP API journeys and isolation", async (t) => {
@@ -285,10 +285,19 @@ test("MVP API journeys and isolation", async (t) => {
           .status,
         404,
       );
-      assert.equal(
-        readdirSync(dir).filter((f) => /^org-.*\.sqlite$/.test(f)).length,
-        2,
-      );
+      if (process.env.DB_TEST_PGLITE === "1") {
+        const { authDb } = await import("../server/db.js");
+        const schemas = await authDb
+          .prepare(
+            "SELECT nspname FROM pg_namespace WHERE nspname LIKE 'pm_org_%'",
+          )
+          .all();
+        assert.equal(schemas.length, 2);
+      } else
+        assert.equal(
+          readdirSync(dir).filter((f) => /^org-.*\.sqlite$/.test(f)).length,
+          2,
+        );
     },
   );
   await t.test("exports real PDF, DOCX and Excel content", async () => {
@@ -439,14 +448,14 @@ test("MVP API journeys and isolation", async (t) => {
     "recovery tokens expire, change passwords, revoke sessions and are single-use",
     async () => {
       const { authDb } = await import("../server/db.js");
-      const user = authDb
+      const user = (await authDb
         .prepare("SELECT id FROM users WHERE email=?")
-        .get("owner@example.com")!;
+        .get("owner@example.com"))!;
       const expired = randomBytes(32).toString("hex");
       const valid = randomBytes(32).toString("hex");
       const digest = (v: string) =>
         createHash("sha256").update(v).digest("hex");
-      authDb
+      await authDb
         .prepare("INSERT INTO reset_tokens VALUES(?,?,?)")
         .run(digest(expired), user.id, Date.now() - 1);
       assert.equal(
@@ -458,7 +467,7 @@ test("MVP API journeys and isolation", async (t) => {
         ).status,
         400,
       );
-      authDb
+      await authDb
         .prepare("INSERT INTO reset_tokens VALUES(?,?,?)")
         .run(digest(valid), user.id, Date.now() + 60000);
       assert.equal(

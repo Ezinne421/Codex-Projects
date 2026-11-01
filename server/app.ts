@@ -1,4 +1,4 @@
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import express, {
   type Request,
   type Response,
@@ -7,6 +7,7 @@ import express, {
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
+import { createDatabaseRateLimitStore } from "./rate-limit-store.js";
 import {
   randomBytes,
   randomUUID,
@@ -15,14 +16,13 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 import { z } from "zod";
-import { authDb, tenantDb } from "./db.js";
+import { authDb, tenantDb, requestDatabase, type Database } from "./db.js";
 import { projectSchema, schemas, type Resource, currency } from "./schemas.js";
 import { financials } from "./finance.js";
 import PDFDocument from "pdfkit";
 import { Document, Packer, Paragraph, TextRun } from "docx";
 import writeExcelFile from "write-excel-file/node";
 import nodemailer from "nodemailer";
-import type { DatabaseSync } from "node:sqlite";
 
 type User = {
   id: string;
@@ -37,7 +37,7 @@ declare global {
   namespace Express {
     interface Request {
       user: User;
-      db: DatabaseSync;
+      db: Database;
     }
   }
 }
@@ -52,12 +52,20 @@ const verify = (p: string, h: string) => {
   return timingSafeEqual(scryptSync(p, salt, 64), Buffer.from(key, "hex"));
 };
 const production = process.env.NODE_ENV === "production";
+const applicationUrl =
+  process.env.APP_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000");
 const smtpReady = () =>
   ["SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM"].every(
     (k) => !!process.env[k],
   );
 export const app = express();
 app.disable("x-powered-by");
+if (process.env.VERCEL) app.set("trust proxy", 1);
 app.use(helmet({ contentSecurityPolicy: production ? undefined : false }));
 app.use(express.json({ limit: "128kb" }));
 app.use(cookieParser());
@@ -66,6 +74,7 @@ app.use(
   rateLimit({
     windowMs: 60000,
     limit: 240,
+    store: createDatabaseRateLimitStore("api", 60000),
     standardHeaders: "draft-8",
     legacyHeaders: false,
   }),
@@ -74,10 +83,11 @@ app.use("/api", (req, res, next) => {
   res.setHeader("Cache-Control", "no-store");
   if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
     const origin = req.get("origin");
-    const expected = new URL(process.env.APP_URL || "http://localhost:3000")
-      .origin;
+    const expected = new URL(applicationUrl).origin;
     if (
-      (origin && origin !== expected) ||
+      (origin &&
+        origin !== expected &&
+        !(process.env.VERCEL && origin === `https://${req.hostname}`)) ||
       req.get("x-requested-with") !== "ProjectManager"
     )
       return res.status(403).json({ error: "Request origin rejected" });
@@ -87,14 +97,18 @@ app.use("/api", (req, res, next) => {
 const authLimiter = rateLimit({
   windowMs: 15 * 60000,
   limit: 30,
+  store: createDatabaseRateLimitStore("auth", 15 * 60000),
   standardHeaders: "draft-8",
   legacyHeaders: false,
 });
 app.use("/api/auth", authLimiter);
-function session(res: Response, userId: string) {
+app.use("/api", requestDatabase);
+async function session(res: Response, userId: string) {
   const token = randomBytes(32).toString("hex");
-  authDb.prepare("DELETE FROM sessions WHERE expires_at < ?").run(Date.now());
-  authDb
+  await authDb
+    .prepare("DELETE FROM sessions WHERE expires_at < ?")
+    .run(Date.now());
+  await authDb
     .prepare("INSERT INTO sessions VALUES(?,?,?)")
     .run(hash(token), userId, Date.now() + 7 * 86400000);
   res.cookie("pm_session", token, {
@@ -105,50 +119,50 @@ function session(res: Response, userId: string) {
     path: "/",
   });
 }
-function requireAuth(req: Request, res: Response, next: NextFunction) {
+async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const token = req.cookies.pm_session;
   const user =
     typeof token === "string"
-      ? (authDb
+      ? ((await authDb
           .prepare(
             "SELECT u.id,u.email,u.name,u.org_id,u.country,u.currency,u.industry FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token_hash=? AND s.expires_at>?",
           )
-          .get(hash(token), Date.now()) as User | undefined)
+          .get(hash(token), Date.now())) as User | undefined)
       : undefined;
   if (!user)
     return res.status(401).json({ error: "Please sign in to continue" });
   (req as Authed).user = user;
   next();
 }
-function tenant(req: Request, res: Response, next: NextFunction) {
+async function tenant(req: Request, res: Response, next: NextFunction) {
   const r = req as Authed;
-  r.db = tenantDb(r.user.org_id);
+  r.db = await tenantDb(r.user.org_id);
   let closed = false;
-  const close = () => {
+  const close = async () => {
     if (!closed) {
-      r.db.close();
       closed = true;
+      await r.db.close();
     }
   };
   res.on("finish", close);
   res.on("close", close);
   next();
 }
-function audit(req: Authed, action: string, id: string) {
-  req.db
+async function audit(req: Authed, action: string, id: string) {
+  await req.db
     .prepare("INSERT INTO audit_logs(actor,action,record_id) VALUES(?,?,?)")
     .run(req.user.id, action, id);
 }
-function project(req: Authed, id: string) {
-  const p = req.db.prepare("SELECT * FROM projects WHERE id=?").get(id);
+async function project(req: Authed, id: string) {
+  const p = await req.db.prepare("SELECT * FROM projects WHERE id=?").get(id);
   if (!p) throw Object.assign(new Error("Project not found"), { status: 404 });
   return p;
 }
-function bundle(req: Authed, id: string) {
-  const p = project(req, id);
+async function bundle(req: Authed, id: string) {
+  const p = await project(req, id);
   const data: Record<string, any> = { project: p };
   for (const resource of Object.keys(schemas)) {
-    data[resource] = req.db
+    data[resource] = await req.db
       .prepare(
         `SELECT * FROM ${resource} WHERE project_id=? ORDER BY created_at DESC,id`,
       )
@@ -163,7 +177,7 @@ function bundle(req: Authed, id: string) {
   return data;
 }
 app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
-app.post("/api/auth/register", (req, res) => {
+app.post("/api/auth/register", async (req, res) => {
   const p = z
     .object({
       name: z.string().trim().min(1).max(100),
@@ -181,12 +195,12 @@ app.post("/api/auth/register", (req, res) => {
   const userId = randomUUID(),
     org = randomUUID();
   const encoded = passwordHash(p.password);
-  authDb.exec("BEGIN");
+  await authDb.exec("BEGIN");
   try {
-    authDb
+    await authDb
       .prepare("INSERT INTO organisations(id,name) VALUES(?,?)")
       .run(org, p.organisation);
-    authDb
+    await authDb
       .prepare(
         "INSERT INTO users(id,email,password_hash,name,org_id,country,currency,industry) VALUES(?,?,?,?,?,?,?,?)",
       )
@@ -200,39 +214,39 @@ app.post("/api/auth/register", (req, res) => {
         p.currency,
         p.industry,
       );
-    authDb.exec("COMMIT");
+    await authDb.exec("COMMIT");
   } catch (e) {
-    authDb.exec("ROLLBACK");
-    if (String(e).includes("UNIQUE"))
-      return res
-        .status(409)
-        .json({
-          error:
-            "Unable to register this email. Try signing in or recovering your password.",
-        });
+    await authDb.exec("ROLLBACK");
+    if ((e as any).code === "23505" || String(e).includes("UNIQUE"))
+      return res.status(409).json({
+        error:
+          "Unable to register this email. Try signing in or recovering your password.",
+      });
     throw e;
   }
-  session(res, userId);
+  await session(res, userId);
   res.status(201).json({ ok: true });
 });
-app.post("/api/auth/login", (req, res) => {
+app.post("/api/auth/login", async (req, res) => {
   const p = z
     .object({
       email: z.email().transform((e) => e.toLowerCase()),
       password: z.string().min(1).max(128),
     })
     .parse(req.body);
-  const user = authDb.prepare("SELECT * FROM users WHERE email=?").get(p.email);
+  const user = await authDb
+    .prepare("SELECT * FROM users WHERE email=?")
+    .get(p.email);
   const dummy = "0123456789abcdef0123456789abcdef:" + "00".repeat(64);
   const valid = verify(p.password, (user?.password_hash as string) || dummy);
   if (!user || !valid)
     return res.status(401).json({ error: "Email or password is incorrect" });
-  session(res, user.id as string);
+  await session(res, user.id as string);
   res.json({ ok: true });
 });
-app.post("/api/auth/logout", (req, res) => {
+app.post("/api/auth/logout", async (req, res) => {
   if (req.cookies.pm_session)
-    authDb
+    await authDb
       .prepare("DELETE FROM sessions WHERE token_hash=?")
       .run(hash(req.cookies.pm_session));
   res.clearCookie("pm_session", { path: "/" });
@@ -249,25 +263,28 @@ app.post("/api/auth/forgot", async (req, res) => {
     .object({ email: z.email().transform((e) => e.toLowerCase()) })
     .parse(req.body);
   if (!smtpReady())
-    return res
-      .status(503)
-      .json({
-        error:
-          "Email recovery is not configured. Contact your deployment administrator.",
-      });
-  const user = authDb.prepare("SELECT id FROM users WHERE email=?").get(email);
+    return res.status(503).json({
+      error:
+        "Email recovery is not configured. Contact your deployment administrator.",
+    });
+  const user = await authDb
+    .prepare("SELECT id FROM users WHERE email=?")
+    .get(email);
   if (user) {
     const token = randomBytes(32).toString("hex");
-    authDb
+    await authDb
       .prepare("DELETE FROM reset_tokens WHERE user_id=? OR expires_at<?")
       .run(user.id, Date.now());
-    authDb
+    await authDb
       .prepare("INSERT INTO reset_tokens VALUES(?,?,?)")
       .run(hash(token), user.id, Date.now() + 30 * 60000);
     try {
       await nodemailer
         .createTransport({
           host: process.env.SMTP_HOST,
+          connectionTimeout: 10000,
+          greetingTimeout: 10000,
+          socketTimeout: 15000,
           port: Number(process.env.SMTP_PORT || 465),
           secure: Number(process.env.SMTP_PORT || 465) === 465,
           requireTLS: Number(process.env.SMTP_PORT || 465) !== 465,
@@ -280,10 +297,10 @@ app.post("/api/auth/forgot", async (req, res) => {
           from: process.env.SMTP_FROM,
           to: email,
           subject: "Reset your ProjectManager password",
-          text: `Reset your password within 30 minutes: ${process.env.APP_URL || "http://localhost:3000"}/?reset=${token}`,
+          text: `Reset your password within 30 minutes: ${applicationUrl}/?reset=${token}`,
         });
     } catch {
-      authDb
+      await authDb
         .prepare("DELETE FROM reset_tokens WHERE token_hash=?")
         .run(hash(token));
       console.error("Password recovery email delivery failed");
@@ -294,14 +311,14 @@ app.post("/api/auth/forgot", async (req, res) => {
     message: "If this account exists, a reset link will be emailed.",
   });
 });
-app.post("/api/auth/reset", (req, res) => {
+app.post("/api/auth/reset", async (req, res) => {
   const p = z
     .object({
       token: z.string().regex(/^[a-f0-9]{64}$/),
       password: z.string().min(12).max(128),
     })
     .parse(req.body);
-  const token = authDb
+  const token = await authDb
     .prepare("SELECT * FROM reset_tokens WHERE token_hash=? AND expires_at>?")
     .get(hash(p.token), Date.now());
   if (!token)
@@ -309,88 +326,94 @@ app.post("/api/auth/reset", (req, res) => {
       .status(400)
       .json({ error: "This recovery link is invalid or expired" });
   const encoded = passwordHash(p.password);
-  authDb.exec("BEGIN");
+  await authDb.exec("BEGIN");
   try {
-    authDb
+    await authDb
       .prepare("UPDATE users SET password_hash=? WHERE id=?")
       .run(encoded, token.user_id);
-    authDb.prepare("DELETE FROM sessions WHERE user_id=?").run(token.user_id);
-    authDb
+    await authDb
+      .prepare("DELETE FROM sessions WHERE user_id=?")
+      .run(token.user_id);
+    await authDb
       .prepare("DELETE FROM reset_tokens WHERE user_id=?")
       .run(token.user_id);
-    authDb.exec("COMMIT");
+    await authDb.exec("COMMIT");
   } catch (e) {
-    authDb.exec("ROLLBACK");
+    await authDb.exec("ROLLBACK");
     throw e;
   }
   res.json({ ok: true });
 });
-app.get("/api/me", requireAuth, (req, res) => {
+app.get("/api/me", requireAuth, async (req, res) => {
   const u = (req as Authed).user;
   res.json({
     ...u,
-    organisation: authDb
-      .prepare("SELECT name FROM organisations WHERE id=?")
-      .get(u.org_id)?.name,
+    organisation: (
+      await authDb
+        .prepare("SELECT name FROM organisations WHERE id=?")
+        .get(u.org_id)
+    )?.name,
   });
 });
 app.use("/api/projects", requireAuth, tenant);
-app.get("/api/projects", (req, res) => {
+app.get("/api/projects", async (req, res) => {
   const r = req as Authed;
-  res.json(
-    r.db
-      .prepare("SELECT * FROM projects ORDER BY created_at DESC,id")
-      .all()
-      .map((p) => bundle(r, p.id as string)),
-  );
+  const records = await r.db
+    .prepare("SELECT * FROM projects ORDER BY created_at DESC,id")
+    .all();
+  const results = [];
+  for (const row of records) results.push(await bundle(r, row.id));
+  res.json(results);
 });
-app.post("/api/projects", (req, res) => {
+app.post("/api/projects", async (req, res) => {
   const r = req as Authed;
   const p = projectSchema.parse(req.body);
   const id = randomUUID();
   const keys = Object.keys(p);
-  r.db
+  await r.db
     .prepare(
       `INSERT INTO projects(id,${keys.join(",")}) VALUES(?,${keys.map(() => "?").join(",")})`,
     )
     .run(id, ...Object.values(p));
-  audit(r, "project.created", id);
-  res.status(201).json(bundle(r, id));
+  await audit(r, "project.created", id);
+  res.status(201).json(await bundle(r, id));
 });
-app.get("/api/projects/:id", (req, res) =>
-  res.json(bundle(req as Authed, req.params.id as string)),
+app.get("/api/projects/:id", async (req, res) =>
+  res.json(await bundle(req as Authed, req.params.id as string)),
 );
-app.put("/api/projects/:id", (req, res) => {
+app.put("/api/projects/:id", async (req, res) => {
   const r = req as Authed;
   const id = req.params.id as string;
-  project(r, id);
+  await project(r, id);
   const p = projectSchema.parse(req.body);
-  r.db
+  await r.db
     .prepare(
       `UPDATE projects SET ${Object.keys(p)
         .map((k) => `${k}=?`)
         .join(",")} WHERE id=?`,
     )
     .run(...Object.values(p), id);
-  audit(r, "project.updated", id);
-  res.json(bundle(r, id));
+  await audit(r, "project.updated", id);
+  res.json(await bundle(r, id));
 });
-app.delete("/api/projects/:id", (req, res) => {
+app.delete("/api/projects/:id", async (req, res) => {
   const r = req as Authed;
-  project(r, req.params.id as string);
-  r.db.prepare("DELETE FROM projects WHERE id=?").run(req.params.id as string);
-  audit(r, "project.deleted", req.params.id as string);
+  await project(r, req.params.id as string);
+  await r.db
+    .prepare("DELETE FROM projects WHERE id=?")
+    .run(req.params.id as string);
+  await audit(r, "project.deleted", req.params.id as string);
   res.json({ ok: true });
 });
-app.post("/api/projects/:id/duplicate", (req, res) => {
+app.post("/api/projects/:id/duplicate", async (req, res) => {
   const r = req as Authed;
-  const original = project(r, req.params.id as string);
+  const original = await project(r, req.params.id as string);
   const id = randomUUID();
   const { id: _, created_at, ...values } = original;
   values.title = String(values.title).slice(0, 190) + " (copy)";
-  r.db.exec("BEGIN");
+  await r.db.exec("BEGIN");
   try {
-    r.db
+    await r.db
       .prepare(
         `INSERT INTO projects(id,${Object.keys(values).join(",")}) VALUES(?,${Object.keys(
           values,
@@ -400,11 +423,11 @@ app.post("/api/projects/:id/duplicate", (req, res) => {
       )
       .run(id, ...Object.values(values));
     for (const resource of ["tasks", "budget_items", "risks", "documents"]) {
-      for (const row of r.db
+      for (const row of await r.db
         .prepare(`SELECT * FROM ${resource} WHERE project_id=?`)
         .all(req.params.id as string)) {
         const { id: old, created_at: time, project_id, ...rest } = row;
-        r.db
+        await r.db
           .prepare(
             `INSERT INTO ${resource}(id,project_id,${Object.keys(rest).join(",")}) VALUES(?,?,${Object.keys(
               rest,
@@ -415,26 +438,27 @@ app.post("/api/projects/:id/duplicate", (req, res) => {
           .run(randomUUID(), id, ...Object.values(rest));
       }
     }
-    r.db.exec("COMMIT");
+    await r.db.exec("COMMIT");
   } catch (e) {
-    r.db.exec("ROLLBACK");
+    await r.db.exec("ROLLBACK");
     throw e;
   }
-  audit(r, "project.duplicated", id);
-  res.status(201).json(bundle(r, id));
+  await audit(r, "project.duplicated", id);
+  res.status(201).json(await bundle(r, id));
 });
 app.post(
   "/api/projects/:id/ai",
   rateLimit({
     windowMs: 15 * 60000,
     limit: 10,
+    store: createDatabaseRateLimitStore("ai", 15 * 60000),
     standardHeaders: "draft-8",
     legacyHeaders: false,
   }),
   async (req, res) => {
     const r = req as Authed;
     const id = req.params.id as string;
-    const data = bundle(r, id);
+    const data = await bundle(r, id);
     const { kind, prompt } = z
       .object({
         kind: z.enum(["plan", "report", "advice"]),
@@ -442,12 +466,10 @@ app.post(
       })
       .parse(req.body);
     if (!process.env.AI_API_KEY)
-      return res
-        .status(503)
-        .json({
-          error:
-            "AI is not configured. Set AI_API_KEY on the server, or write a document manually.",
-        });
+      return res.status(503).json({
+        error:
+          "AI is not configured. Set AI_API_KEY on the server, or write a document manually.",
+      });
     const snapshot = JSON.stringify(data);
     try {
       const result = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -474,23 +496,21 @@ app.post(
           ],
           max_tokens: 3500,
         }),
-        signal: AbortSignal.timeout(60000),
+        signal: AbortSignal.timeout(45000),
       });
       if (!result.ok) {
         console.error("AI upstream request failed", result.status);
-        return res
-          .status(502)
-          .json({
-            error:
-              "AI provider could not complete this request. Check server credentials, quota and connectivity.",
-          });
+        return res.status(502).json({
+          error:
+            "AI provider could not complete this request. Check server credentials, quota and connectivity.",
+        });
       }
       const payload = (await result.json()) as any;
       const content = payload.choices?.[0]?.message?.content;
       if (typeof content !== "string" || !content.trim())
         throw new Error("Empty AI response");
       // Revalidate the session and parent after the external request before persisting output.
-      const active = authDb
+      const active = await authDb
         .prepare(
           "SELECT user_id FROM sessions WHERE token_hash=? AND expires_at>?",
         )
@@ -499,7 +519,7 @@ app.post(
         return res
           .status(401)
           .json({ error: "Your session expired. Please sign in again." });
-      project(r, id);
+      await project(r, id);
       const documentId = randomUUID();
       const type =
         kind === "plan"
@@ -507,7 +527,7 @@ app.post(
           : kind === "report"
             ? "Progress report"
             : "Project charter";
-      r.db
+      await r.db
         .prepare(
           "INSERT INTO documents(id,project_id,title,type,content,source) VALUES(?,?,?,?,?,?)",
         )
@@ -519,7 +539,7 @@ app.post(
           content,
           "AI draft — review required",
         );
-      r.db
+      await r.db
         .prepare(
           "INSERT INTO ai_history(id,project_id,model,source_refs) VALUES(?,?,?,?)",
         )
@@ -533,23 +553,21 @@ app.post(
             snapshotHash: hash(snapshot),
           }),
         );
-      audit(r, "ai.generated", documentId);
+      await audit(r, "ai.generated", documentId);
       res.json({ documentId, content });
     } catch (e) {
       if ((e as any).status === 404) throw e;
       console.error("AI generation failed");
-      res
-        .status(502)
-        .json({
-          error:
-            "AI generation failed or timed out. Your existing records are unchanged.",
-        });
+      res.status(502).json({
+        error:
+          "AI generation failed or timed out. Your existing records are unchanged.",
+      });
     }
   },
 );
 app.get("/api/projects/:id/export/:format", async (req, res) => {
   const r = req as Authed;
-  const data = bundle(r, req.params.id as string);
+  const data = await bundle(r, req.params.id as string);
   const format = req.params.format;
   const docId =
     typeof req.query.document === "string" ? req.query.document : undefined;
@@ -586,7 +604,7 @@ app.get("/api/projects/:id/export/:format", async (req, res) => {
     res.attachment(name + ".pdf");
     const pdf = new PDFDocument({
       margin: 50,
-      font: fileURLToPath(new URL("./fonts/DejaVuSans.ttf", import.meta.url)),
+      font: resolve("server/fonts/DejaVuSans.ttf"),
     });
     pdf.on("error", () => res.destroy());
     pdf.pipe(res);
@@ -663,26 +681,26 @@ app.get("/api/projects/:id/export/:format", async (req, res) => {
       .send(await writeExcelFile(sheets).toBuffer());
   } else res.status(400).json({ error: "Choose pdf, docx or xlsx" });
 });
-app.all("/api/projects/:id/:resource{/:childId}", (req, res) => {
+app.all("/api/projects/:id/:resource{/:childId}", async (req, res) => {
   const r = req as Authed;
   const id = req.params.id as string;
-  project(r, id);
+  await project(r, id);
   const resource = req.params.resource as Resource;
   if (!Object.hasOwn(schemas, resource))
     return res.status(404).json({ error: "Resource not found" });
   const childId = req.params.childId as string | undefined;
   if (
     childId &&
-    !r.db
+    !(await r.db
       .prepare(`SELECT id FROM ${resource} WHERE id=? AND project_id=?`)
-      .get(childId, id)
+      .get(childId, id))
   )
     return res.status(404).json({ error: "Record not found" });
   if (req.method === "DELETE" && childId) {
-    r.db
+    await r.db
       .prepare(`DELETE FROM ${resource} WHERE id=? AND project_id=?`)
       .run(childId, id);
-    audit(r, `${resource}.deleted`, childId);
+    await audit(r, `${resource}.deleted`, childId);
     return res.json({ ok: true });
   }
   if (
@@ -693,9 +711,9 @@ app.all("/api/projects/:id/:resource{/:childId}", (req, res) => {
     if (
       resource === "expenses" &&
       p.budget_item_id &&
-      !r.db
+      !(await r.db
         .prepare("SELECT id FROM budget_items WHERE id=? AND project_id=?")
-        .get(p.budget_item_id, id)
+        .get(p.budget_item_id, id))
     )
       return res
         .status(400)
@@ -703,7 +721,7 @@ app.all("/api/projects/:id/:resource{/:childId}", (req, res) => {
     const key = childId || randomUUID();
     const keys = Object.keys(p);
     if (childId)
-      r.db
+      await r.db
         .prepare(
           `UPDATE ${resource} SET ${keys.map((k) => `${k}=?`).join(",")}${resource === "documents" ? ",updated_at=CURRENT_TIMESTAMP" : ""} WHERE id=? AND project_id=?`,
         )
@@ -713,7 +731,7 @@ app.all("/api/projects/:id/:resource{/:childId}", (req, res) => {
         ...p,
         ...(resource === "documents" ? { source: "Manual draft" } : {}),
       };
-      r.db
+      await r.db
         .prepare(
           `INSERT INTO ${resource}(id,project_id,${Object.keys(values).join(",")}) VALUES(?,?,${Object.keys(
             values,
@@ -723,7 +741,7 @@ app.all("/api/projects/:id/:resource{/:childId}", (req, res) => {
         )
         .run(key, id, ...Object.values(values));
     }
-    audit(r, `${resource}.${childId ? "updated" : "created"}`, key);
+    await audit(r, `${resource}.${childId ? "updated" : "created"}`, key);
     return res.status(childId ? 200 : 201).json({ id: key });
   }
   res.status(405).json({ error: "Method not supported" });
@@ -732,15 +750,13 @@ app.use("/api", (_req, res) =>
   res.status(404).json({ error: "API route not found" }),
 );
 app.use((error: any, _req: Request, res: Response, _next: NextFunction) => {
-  if (res.headersSent) return;
+  if (res.headersSent || res.destroyed) return;
   if (error instanceof z.ZodError)
-    return res
-      .status(400)
-      .json({
-        error: error.issues
-          .map((i) => `${i.path.join(".") || "Input"}: ${i.message}`)
-          .join("; "),
-      });
+    return res.status(400).json({
+      error: error.issues
+        .map((i) => `${i.path.join(".") || "Input"}: ${i.message}`)
+        .join("; "),
+    });
   if (error.status === 404)
     return res.status(404).json({ error: error.message });
   if (error.type === "entity.parse.failed")

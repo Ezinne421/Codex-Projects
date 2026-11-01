@@ -1,6 +1,6 @@
 # ProjectManager AI Africa
 
-A functional Phase 1 project-management MVP: React + TypeScript + Tailwind, Express and persistent SQLite. Empty accounts start with real empty states. No sample project progress or financial metrics are seeded.
+A functional Phase 1 project-management MVP: React + TypeScript + Tailwind, Express, SQLite for local development, and managed PostgreSQL for Vercel. Empty accounts start with real empty states. No sample project progress or financial metrics are seeded.
 
 Read [the implementation plan and database design](docs/IMPLEMENTATION.md).
 
@@ -16,7 +16,7 @@ npm run dev
 
 Open the app on port **3000**. Register an account to create a private organisation. Each new registration creates a distinct organisation; this release does not have team invitations. For another port, set both `PORT` and `APP_URL` in `.env`. The application loads `.env` on startup. Restart after configuration changes; development does not automatically restart the backend.
 
-Data persists in `.data/` (or the absolute `DATA_DIR`). This directory is ignored by Git, outside the web root, and must be on a persistent local disk. Do not delete it to refresh the app. Never commit `.env`, keys, databases or backups.
+When `DATABASE_URL` is unset, local development data persists in `.data/` (or the absolute `DATA_DIR`). When it is set, accounts and projects use PostgreSQL instead. This directory is ignored by Git, outside the web root, and must be on a persistent local disk. Do not delete it to refresh the app. Never commit `.env`, keys, databases or backups.
 
 ## What works
 
@@ -60,11 +60,15 @@ npm test
 npm run test:e2e
 ```
 
+`npm run test:postgres` runs the API and persistent rate-limit checks against a PostgreSQL-compatible embedded engine; it does not validate a live managed database.
+
 `npm test` uses temporary databases, a local HTTP server and tests calculations, registration, login, logout, persistent records, invalid input, cross-organisation access, CSRF, edits, duplication and file exports. AI success-path tests use an explicitly mocked provider; these are not evidence of live model connectivity.
 
 Browser tests use `/usr/bin/chromium` by default (change `playwright.config.ts` if needed), start an isolated app on port 3100 and use `/tmp/pm-browser-test` for non-production records. They exercise registration, a project, budget, task, risk, document download, login persistence and mobile navigation. The test server is stopped automatically. Screenshots are written to `/tmp/projectmanager-*.png`.
 
 ## Deployment and operations
+
+For the full app on Vercel, follow [the Vercel deployment guide](docs/VERCEL.md). It requires a Vercel account and a dedicated managed PostgreSQL database, supplied securely as `DATABASE_URL`. Vercel deployments refuse ephemeral SQLite storage. The commands below describe the alternative single-node hosting mode.
 
 1. Provision Node 24, TLS reverse proxy and persistent **local** storage. Use a dedicated unprivileged app account. Run `npm ci` and `npm run build` in the checkout.
 2. Set `NODE_ENV=production`, `APP_URL=https://your-host.example`, `PORT=3000` and an absolute `DATA_DIR` writable only by the application account. Add AI and SMTP credentials as needed. Run `npm start` with a process supervisor. Production serves `dist/` and requires HTTPS `APP_URL`; cookies are Secure. Forward traffic from your TLS proxy to port 3000; do not expose the internal service directly.
@@ -78,4 +82,4 @@ Logs include error categories and upstream status, not passwords, AI keys, promp
 
 This is a production-oriented starting point, not a completed commercial service. Live AI and SMTP need external configuration and testing. Email ownership verification, MFA, collaborative memberships/roles, invitations, automatic dependency scheduling, earned-value baselines/CPI/SPI, external exchange rates, spreadsheet import, usage-based subscriptions and payments are not implemented. It does not charge users or claim successful payments. No fabricated testimonials or client logos are displayed.
 
-This MVP enforces tenant isolation using separate SQLite databases plus server-side membership checks, rather than claiming PostgreSQL RLS. A managed PostgreSQL deployment with RLS and a fresh isolation test suite is a separate migration. Operational monitoring, off-host backups, final privacy/terms, support contact, account-deletion policy and disaster-recovery drills must be configured by the deployment owner before a public commercial launch.
+This MVP enforces tenant isolation using separate SQLite databases plus server-side membership checks, rather than claiming PostgreSQL RLS. Managed PostgreSQL mode uses separate organisation schemas and tested server-side membership checks. It does not claim database row-level-security policies. See the Vercel guide for deployment and provider backup requirements. Operational monitoring, off-host backups, final privacy/terms, support contact, account-deletion policy and disaster-recovery drills must be configured by the deployment owner before a public commercial launch.

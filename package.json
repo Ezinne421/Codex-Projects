@@ -11,7 +11,8 @@
     "test:e2e": "playwright test",
     "format": "prettier --write src server shared scripts tests docs README.md *.ts *.json index.html",
     "sync:standalone": "node scripts/sync-standalone.mjs",
-    "package:standalone": "node scripts/sync-standalone.mjs && python3 scripts/package-standalone.py"
+    "package:standalone": "node scripts/sync-standalone.mjs && python3 scripts/package-standalone.py",
+    "test:postgres": "NODE_ENV=test DB_TEST_PGLITE=1 node --import tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.0",
@@ -23,6 +24,7 @@
     "lucide-react": "^0.468.0",
     "nodemailer": "^10.3.1",
     "pdfkit": "^0.17.0",
+    "pg": "^8.23.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "read-excel-file": "^9.3.14",
@@ -32,12 +34,14 @@
     "zod": "^4.1.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.14",
     "@playwright/test": "^1.56.0",
     "@types/cookie-parser": "^1.4.9",
     "@types/express": "^5.0.0",
     "@types/node": "^24.0.0",
     "@types/nodemailer": "^7.0.0",
     "@types/pdfkit": "^0.17.0",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "prettier": "^3.9.10",
