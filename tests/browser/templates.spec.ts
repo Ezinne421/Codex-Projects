@@ -14,6 +14,13 @@ test("full app: visible library, blank export, project generation, edited save a
     .getByLabel("Password", { exact: true })
     .fill("A safe testing password 123");
   await page.getByRole("button", { name: "Create your workspace" }).click();
+  await page
+    .locator(".sidebar")
+    .getByRole("button", { name: "Knowledge Centre", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Knowledge Centre", exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Templates", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Project management templates" }),

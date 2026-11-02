@@ -18,3 +18,12 @@ Browser storage may depend on the file location. Keep regular JSON backups.
 Local records are stored only in this browser profile. There is no login-based
 security or online synchronisation. Use the full server app for protected team
 workspaces. HTML and text exports are available; Chrome Print can save as PDF.
+
+KNOWLEDGE CENTRE
+Click Knowledge Centre in the header for 538 project and operations management
+definitions across 21 topics. Search terms or acronyms, filter by topic or A-Z,
+open related terms, save bookmarks and export the filtered glossary as CSV.
+Selected terms include formulas, conditions and illustrative examples.
+The definitions work offline; external further-reading links need internet.
+Bookmarks stay in this browser. Summaries are an educational reference; use your
+organisation's required definitions for formal decisions.

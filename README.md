@@ -83,3 +83,29 @@ Logs include error categories and upstream status, not passwords, AI keys, promp
 This is a production-oriented starting point, not a completed commercial service. Live AI and SMTP need external configuration and testing. Email ownership verification, MFA, collaborative memberships/roles, invitations, automatic dependency scheduling, earned-value baselines/CPI/SPI, external exchange rates, spreadsheet import, usage-based subscriptions and payments are not implemented. It does not charge users or claim successful payments. No fabricated testimonials or client logos are displayed.
 
 This MVP enforces tenant isolation using separate SQLite databases plus server-side membership checks, rather than claiming PostgreSQL RLS. Managed PostgreSQL mode uses separate organisation schemas and tested server-side membership checks. It does not claim database row-level-security policies. See the Vercel guide for deployment and provider backup requirements. Operational monitoring, off-host backups, final privacy/terms, support contact, account-deletion policy and disaster-recovery drills must be configured by the deployment owner before a public commercial launch.
+
+### Knowledge Centre
+
+Open **Knowledge Centre** in the app menu, public website navigation/footer, or
+standalone HTML header. The library contains 538 original definitions across 21
+topics in project and operations management: governance, scope, scheduling,
+finance, earned value, Agile, risk, quality, Lean, inventory, procurement,
+supply chains, maintenance, people, monitoring and evaluation, service management,
+business analysis, African delivery contexts and management documents.
+
+Search terms, acronyms and definition text; combine topic and A–Z filters, open
+related definitions, save bookmarks and export the filtered glossary as CSV.
+Selected metrics include formulas, assumptions and illustrative examples. Saved
+terms stay in the current browser (scoped per account in the hosted app); they
+are not shared organisation records. Public access requires no account.
+
+The catalogue is a broad reference, not an exhaustive list of every possible
+framework-specific term. Summaries are original explanations. Official sources
+are linked for further study and do not imply endorsement. For formal work use
+the definitions required by the applicable organisation, framework or contract.
+
+Maintain entries and references in `shared/knowledge/catalog.ts`; shared search
+and CSV logic live in `shared/knowledge/search.ts`. The hosted UI lazy-loads this
+library. `npm run sync:standalone` embeds the same catalogue, search engine,
+styles and offline interface into the single HTML file. Definitions, bookmarks
+and CSV exports work without internet; external reference links require access.

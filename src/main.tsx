@@ -1,6 +1,7 @@
 import React, { useEffect, useState, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import {
+  BookOpen,
   LayoutDashboard,
   FolderKanban,
   Sparkles,
@@ -38,6 +39,7 @@ import {
   Clock,
   HelpCircle,
 } from "lucide-react";
+const KnowledgeCentre = lazy(() => import("./KnowledgeCentre"));
 const FinanceChart = lazy(() => import("./FinanceChart"));
 import { api, today, money, type Bundle, type Project } from "./api";
 import "./styles.css";
@@ -62,6 +64,7 @@ const nav = [
   ["Risk Management", ShieldAlert],
   ["Reports & Documents", FileText],
   ["Templates", Layers],
+  ["Knowledge Centre", BookOpen],
 ] as const;
 type Field = {
   name: string;
@@ -630,19 +633,24 @@ function App() {
               <Logo />
             </button>
             <nav>
-              {["Features", "Industries", "Pricing", "About", "FAQ"].map(
-                (p) => (
-                  <button
-                    key={p}
-                    onClick={() => {
-                      setPublicPage(p);
-                      setAuthMode("");
-                    }}
-                  >
-                    {p}
-                  </button>
-                ),
-              )}
+              {[
+                "Features",
+                "Industries",
+                "Pricing",
+                "About",
+                "Knowledge Centre",
+                "FAQ",
+              ].map((p) => (
+                <button
+                  key={p}
+                  onClick={() => {
+                    setPublicPage(p);
+                    setAuthMode("");
+                  }}
+                >
+                  {p}
+                </button>
+              ))}
             </nav>
             <div className="button-group">
               <button
@@ -661,6 +669,12 @@ function App() {
           </header>
           {authMode ? (
             <Auth mode={authMode} setMode={setAuthMode} onSuccess={load} />
+          ) : publicPage === "Knowledge Centre" ? (
+            <main className="public-knowledge">
+              <Suspense fallback={<p>Loading reference library…</p>}>
+                <KnowledgeCentre />
+              </Suspense>
+            </main>
           ) : publicPage === "Home" ? (
             <main className="landing">
               <span className="eyebrow">
@@ -777,7 +791,7 @@ function App() {
           <footer>
             <span>© {new Date().getFullYear()} ProjectManager AI Africa</span>
             <div>
-              {["Contact", "Privacy", "Terms"].map((p) => (
+              {["Knowledge Centre", "Contact", "Privacy", "Terms"].map((p) => (
                 <button
                   key={p}
                   onClick={() => {
@@ -1884,6 +1898,12 @@ function App() {
                     </button>
                   </div>
                 </>
+              ) : view === "Knowledge Centre" ? (
+                <Suspense fallback={<p>Loading reference library…</p>}>
+                  <KnowledgeCentre
+                    storageKey={`pma-knowledge-saved-${user.id}`}
+                  />
+                </Suspense>
               ) : view === "Templates" ? (
                 <Templates
                   projects={projects}
