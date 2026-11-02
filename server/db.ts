@@ -3,6 +3,7 @@ import { mkdirSync, chmodSync } from "node:fs";
 import { resolve, join } from "node:path";
 import type { Request, Response, NextFunction } from "express";
 import { authSchema, tenantSchema } from "./schema.js";
+import { createRetryableInitializer } from "./database-initialization.js";
 import { databaseErrorTag } from "./database-error.js";
 import { verifiedDatabaseConfig } from "./database-url.js";
 export const dataDir = resolve(process.env.DATA_DIR || ".data");
@@ -69,64 +70,88 @@ async function serialLease() {
 }
 let initializationStage = "configuration";
 let databaseShape: Record<string, boolean | number> = {};
-const rootReady = (async () => {
-  if (testPg) {
-    const { PGlite } = await import("@electric-sql/pglite");
-    pglite = new PGlite();
-    await pglite.waitReady;
-    await migrate(
-      { query: (s, v) => pglite.query(s, v) },
-      authNamespace,
-      authSchema,
-    );
-  } else if (pgMode) {
-    const { Pool, types } = await import("pg");
-    types.setTypeParser(20, (v) => {
-      const n = Number(v);
-      if (!Number.isSafeInteger(n))
-        throw Error("Database integer outside supported range");
-      return n;
-    });
-    const connectionConfig = verifiedDatabaseConfig(process.env.DATABASE_URL!);
-    databaseShape = {
-      supabasePooler: /\.pooler\.supabase\.com$/i.test(
-        connectionConfig.host || "",
-      ),
-      port: connectionConfig.port || 5432,
-      qualifiedUsername: !!connectionConfig.user?.includes("."),
-      passwordConfigured: !!connectionConfig.password,
-    };
-    pool = new Pool({
-      ...connectionConfig,
-      max: 5,
-      connectionTimeoutMillis: 10000,
-      idleTimeoutMillis: 20000,
-    });
-    pool.on("error", () => console.error("PostgreSQL connection error"));
-    initializationStage = "connect";
-    const conn = await pool.connect();
-    try {
-      initializationStage = "schema";
-      await migrate(conn, authNamespace, authSchema);
-    } finally {
-      conn.release();
+async function initializeDatabase() {
+  initializationStage = "configuration";
+  try {
+    if (testPg) {
+      const { PGlite } = await import("@electric-sql/pglite");
+      pglite = new PGlite();
+      await pglite.waitReady;
+      await migrate(
+        { query: (s, v) => pglite.query(s, v) },
+        authNamespace,
+        authSchema,
+      );
+    } else if (pgMode) {
+      const { Pool, types } = await import("pg");
+      types.setTypeParser(20, (v) => {
+        const n = Number(v);
+        if (!Number.isSafeInteger(n))
+          throw Error("Database integer outside supported range");
+        return n;
+      });
+      const connectionConfig = verifiedDatabaseConfig(
+        process.env.DATABASE_URL!,
+      );
+      databaseShape = {
+        supabasePooler: /\.pooler\.supabase\.com$/i.test(
+          connectionConfig.host || "",
+        ),
+        port: connectionConfig.port || 5432,
+        qualifiedUsername: !!connectionConfig.user?.includes("."),
+        passwordConfigured: !!connectionConfig.password,
+      };
+      pool = new Pool({
+        ...connectionConfig,
+        max: 5,
+        connectionTimeoutMillis: 10000,
+        idleTimeoutMillis: 20000,
+      });
+      pool.on("error", () => console.error("PostgreSQL connection error"));
+      initializationStage = "connect";
+      const conn = await pool.connect();
+      try {
+        initializationStage = "schema";
+        await migrate(conn, authNamespace, authSchema);
+      } finally {
+        conn.release();
+      }
+    } else {
+      ({ DatabaseSync } = await import("node:sqlite"));
+      mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+      chmodSync(dataDir, 0o700);
+      sqliteRoot = openSqlite(join(dataDir, "auth.sqlite"));
+      sqliteRoot.exec(authSchema);
     }
-  } else {
-    ({ DatabaseSync } = await import("node:sqlite"));
-    mkdirSync(dataDir, { recursive: true, mode: 0o700 });
-    chmodSync(dataDir, 0o700);
-    sqliteRoot = openSqlite(join(dataDir, "auth.sqlite"));
-    sqliteRoot.exec(authSchema);
+    initializationStage = "ready";
+  } catch (error) {
+    console.error(
+      "Database initialization failed",
+      initializationStage,
+      databaseErrorTag(error),
+    );
+    const failedPool = pool;
+    pool = undefined;
+    try {
+      await failedPool?.end();
+    } catch {}
+    if (!pgMode) {
+      try {
+        sqliteRoot?.close();
+      } catch {}
+      sqliteRoot = undefined;
+    }
+    if (testPg) {
+      try {
+        await pglite?.close();
+      } catch {}
+      pglite = undefined;
+    }
+    throw error;
   }
-  initializationStage = "ready";
-})();
-void rootReady.catch((error) =>
-  console.error(
-    "Database initialization failed",
-    initializationStage,
-    databaseErrorTag(error),
-  ),
-);
+}
+const ensureDatabaseReady = createRetryableInitializer(initializeDatabase);
+
 function openSqlite(path: string) {
   const db = new DatabaseSync(path);
   db.exec(
@@ -210,7 +235,7 @@ async function migrate(
   }
 }
 async function lease(): Promise<Connection> {
-  await rootReady;
+  await ensureDatabaseReady();
   if (testPg) {
     const unlock = await serialLease();
     return {
@@ -328,7 +353,7 @@ function adapter(schema: string, sqlite?: any, isRoot = false): Database {
     values: any[],
     kind: "get" | "all" | "run",
   ) {
-    await rootReady;
+    await ensureDatabaseReady();
     if (scopes.getStore()?.ended)
       throw Error("Request database scope has ended");
     if (!pgMode) {
@@ -349,7 +374,7 @@ function adapter(schema: string, sqlite?: any, isRoot = false): Database {
       run: (...v) => query(sql, v, "run"),
     }),
     exec: async (sql) => {
-      await rootReady;
+      await ensureDatabaseReady();
       if (!pgMode) {
         (isRoot ? sqliteRoot : sqlite).exec(sql);
         return;
@@ -358,11 +383,11 @@ function adapter(schema: string, sqlite?: any, isRoot = false): Database {
     },
     close: async () => {
       if (!pgMode) {
-        if (isRoot) sqliteRoot.close();
+        if (isRoot) sqliteRoot?.close();
         else sqlite.close();
       } else if (isRoot) {
-        if (testPg) await pglite.close();
-        else await pool.end();
+        if (testPg) await pglite?.close();
+        else await pool?.end();
       }
     },
   };

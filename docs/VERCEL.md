@@ -38,6 +38,8 @@ The server trusts the public Supabase Root 2021 CA for Supabase database hosts, 
 
 ## Runtime design and operations
 
+Database initialization starts within the request lifecycle. A failed initial connection is retried on a later request after a five-second cooldown instead of permanently failing that running instance; changing credentials still requires redeployment.
+
 PostgreSQL connections are leased per HTTP request, so concurrent registration and project transactions do not share a transaction. Authentication records live in private `pm_ai_africa_auth`; organisation records live in server-selected `pm_org_<uuid>` schemas. Parameterised SQL and server-side membership checks scope access. These schemas revoke public/API-role privileges and enable row-level security without public-access policies. The privileged server role owns the tables and uses server-side membership checks; the Supabase browser API must not access these records.
 
 Rate-limit counters are also stored in PostgreSQL, so separate Vercel instances and cold starts share limits. Session tokens remain hashed; password resets expire and revoke existing sessions. Connections preserve provider TLS verification; no certificate checks are disabled. The function has a 60-second limit; AI requests time out earlier so failures can be reported cleanly.
