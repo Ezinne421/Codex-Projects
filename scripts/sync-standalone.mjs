@@ -40,6 +40,22 @@ const knowledgeScript =
   '<script id="knowledge-engine">\n' +
   bundle.outputFiles[0].text.replace(/<\/script/gi, "<\\/script") +
   "\n</script>";
+const learningBundle = await build({
+  entryPoints: ["src/offline-learning.tsx"],
+  bundle: true,
+  write: false,
+  format: "iife",
+  globalName: "PMLearning",
+  platform: "browser",
+  target: "es2020",
+  jsx: "automatic",
+  minify: true,
+  define: { "process.env.NODE_ENV": '"production"' },
+});
+const learningScript =
+  '<script id="learning-engine">\n' +
+  learningBundle.outputFiles[0].text.replace(/<\/script/gi, "<\\/script") +
+  "\n</script>";
 const interfaceScript =
   '<script id="knowledge-interface">\n' +
   readFileSync("scripts/standalone-knowledge.js", "utf8").replace(
@@ -50,6 +66,7 @@ const interfaceScript =
 for (const [id, script] of [
   ["knowledge-engine", knowledgeScript],
   ["knowledge-interface", interfaceScript],
+  ["learning-engine", learningScript],
 ]) {
   const pattern = new RegExp('<script id="' + id + '">[\\s\\S]*?<\\/script>');
   if (pattern.test(html)) html = html.replace(pattern, () => script);

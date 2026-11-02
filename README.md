@@ -109,3 +109,31 @@ and CSV logic live in `shared/knowledge/search.ts`. The hosted UI lazy-loads thi
 library. `npm run sync:standalone` embeds the same catalogue, search engine,
 styles and offline interface into the single HTML file. Definitions, bookmarks
 and CSV exports work without internet; external reference links require access.
+
+#### Skills refresh and practice
+
+The Knowledge Centre opens on **Learn & refresh**, with 24 original lessons,
+six guided learning paths and 48 scenario questions. Lessons cover value,
+governance, planning, cost and earned value, risk, quality, change, engagement,
+Scrum, Kanban, hybrid delivery, responsible AI, data, evaluation, procurement,
+operations, inventory, Lean, reliability, sustainability and handover. Each
+contains a learning objective, explanation, recommended steps, worked decision,
+common mistake, application task, connected glossary terms and further reading.
+
+Passing a lesson schedules recall after 1, 3, 7, 14 and 30 days. Same-day or early
+retakes do not advance the interval; an unsuccessful check resets it to one day.
+The due-review view and learning paths use saved browser progress, scoped per
+account in the hosted app. Progress is not synced across devices and does not
+represent certification, eligible training hours or PDUs.
+
+**Practice lab** offers earned value/EAC, PERT, Little's Law and OEE exercises
+with explicit assumptions, input checks and results. They use illustrative input,
+not stored project records. **Current guidance** provides dated, manually curated
+summaries and official links. It is not a live feed; a warning appears when the
+source review snapshot is over 90 days old. Check official requirements before
+making certification or framework decisions.
+
+Learning material is in `shared/knowledge/learning.ts`; progress scheduling,
+validation and calculator logic are in `shared/knowledge/practice.ts`. The same
+`src/LearningHub.tsx` runs in the hosted app and, bundled without external assets,
+in the standalone HTML. Source review notes are in `docs/knowledge-source-review.md`.

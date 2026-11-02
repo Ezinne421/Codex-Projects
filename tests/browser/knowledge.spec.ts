@@ -25,6 +25,7 @@ for (const edition of ["hosted", "offline"])
           .getByRole("button", { name: "Knowledge Centre", exact: true })
           .click();
       }
+      await page.getByRole("button", { name: "Glossary", exact: true }).click();
     };
     await open();
     await expect(

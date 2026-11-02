@@ -1,5 +1,24 @@
 // The offline interface uses the same catalogue and search engine as the hosted app.
 let knowledgeOpen = false;
+let knowledgeSection = "learn";
+function knowledgeSectionNavigation() {
+  return `<nav class="knowledge-sections" aria-label="Knowledge Centre sections">${[
+    ["learn", "Learn & refresh"],
+    ["glossary", "Glossary"],
+    ["tools", "Practice lab"],
+    ["updates", "Current guidance"],
+  ]
+    .map(
+      ([id, label]) =>
+        `<button data-action="knowledge-section" data-id="${id}" class="${knowledgeSection === id ? "active" : ""}" aria-pressed="${knowledgeSection === id}">${label}</button>`,
+    )
+    .join("")}</nav>`;
+}
+function setOfflineLearningSection(section) {
+  knowledgeSection = section;
+  renderKnowledge();
+}
+
 const knowledgeKey = "pma-local-knowledge-saved";
 let knowledgeFilters = {
     query: "",
@@ -29,8 +48,28 @@ function knowledgeSaveButton(t) {
 }
 function renderKnowledge() {
   const results = knowledgeResults();
+  if (knowledgeSection !== "glossary") {
+    if (document.getElementById("offline-learning-root")) {
+      document.querySelector(".knowledge-sections").outerHTML =
+        knowledgeSectionNavigation();
+      PMLearning.showSection(knowledgeSection);
+      return;
+    }
+    PMLearning.unmount();
+    $("app").innerHTML =
+      `<button class="back" data-action="exit-knowledge">‹ Back to workspace</button><section class="knowledge-centre"><div class="page-heading"><div><div class="eyebrow">KEEP LEARNING. KEEP MOVING FORWARD.</div><h1>Knowledge Centre</h1><p>Build, practise and refresh your project and operations management skills.</p></div></div><div class="knowledge-intro"><div><h2>Your management reference, always within reach.</h2><p><strong>${PMKnowledge.knowledgeTerms.length} definitions</strong> across <strong>${PMKnowledge.knowledgeTopics.length} topics</strong>, plus practical lessons, learning paths and worked exercises.</p><small>Original learning summaries. Progress stays in this browser. External references require internet access.</small></div></div>${knowledgeSectionNavigation()}<div id="offline-learning-root"></div></section>`;
+    PMLearning.mount($("offline-learning-root"), {
+      section: knowledgeSection,
+      storageKey: knowledgeKey,
+      terms: PMKnowledge.knowledgeTerms,
+      onOpenTerm: openKnowledgeTerm,
+      onSectionChange: setOfflineLearningSection,
+    });
+    return;
+  }
+  PMLearning.unmount();
   $("app").innerHTML =
-    `<button class="back" data-action="exit-knowledge">‹ Back to workspace</button><section class="knowledge-centre"><div class="page-heading"><div><div class="eyebrow">A LITTLE KNOWLEDGE. A CLEARER WAY FORWARD.</div><h1>Knowledge Centre</h1><p>Project and operations management, in plain language.</p></div>${button("knowledge-csv", "Export glossary CSV", results.length ? "" : "disabled")}</div><div class="knowledge-intro"><div><h2>Your management reference, always within reach.</h2><p><strong>${PMKnowledge.knowledgeTerms.length} definitions</strong> across <strong>${PMKnowledge.knowledgeTopics.length} topics</strong> — from project charters and critical paths to inventory, maintenance and service operations.</p><small>Original summaries of common practice. Terminology varies by context and framework. Formula assumptions are provided; metric definitions do not imply every metric is implemented in this app.</small></div></div><div class="panel knowledge-controls"><label class="knowledge-search"><input id="knowledge-search" aria-label="Search definitions" placeholder="Search a term, acronym or concept…" value="${escape(knowledgeFilters.query)}"></label><div class="knowledge-filter-row"><label>Topic<select id="knowledge-topic" aria-label="Knowledge topic"><option value="All">All topics (${PMKnowledge.knowledgeTerms.length})</option>${PMKnowledge.knowledgeTopics.map((t) => `<option value="${t.id}" ${knowledgeFilters.category === t.id ? "selected" : ""}>${escape(t.name)} (${PMKnowledge.knowledgeTerms.filter((k) => k.category === t.id).length})</option>`).join("")}</select></label><div class="knowledge-switch"><button data-action="knowledge-all" aria-pressed="${!knowledgeFilters.favouritesOnly}" class="${knowledgeFilters.favouritesOnly ? "" : "active"}">All terms</button><button data-action="knowledge-saved" aria-pressed="${knowledgeFilters.favouritesOnly}" class="${knowledgeFilters.favouritesOnly ? "active" : ""}">Saved (${knowledgeSaved.length})</button></div><button class="text-link" data-action="knowledge-clear">Clear filters</button></div><div class="knowledge-alphabet" role="group" aria-label="Filter terms by first letter">${["All", "#", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"].map((l) => `<button data-action="knowledge-letter" data-id="${l}" aria-label="${l === "All" ? "All first letters" : l === "#" ? "Terms starting with a number" : "Terms starting with " + l}" aria-pressed="${l === knowledgeFilters.letter}" class="${l === knowledgeFilters.letter ? "active" : ""}">${l}</button>`).join("")}</div></div><div class="knowledge-results-heading"><p role="status">${results.length} ${results.length === 1 ? "definition" : "definitions"} found</p><small>Saved terms stay in this browser. Edition ${PMKnowledge.knowledgeEdition}.</small></div>${
+    `<button class="back" data-action="exit-knowledge">‹ Back to workspace</button><section class="knowledge-centre"><div class="page-heading"><div><div class="eyebrow">A LITTLE KNOWLEDGE. A CLEARER WAY FORWARD.</div><h1>Knowledge Centre</h1><p>Project and operations management, in plain language.</p></div>${button("knowledge-csv", "Export glossary CSV", results.length ? "" : "disabled")}</div><div class="knowledge-intro"><div><h2>Your management reference, always within reach.</h2><p><strong>${PMKnowledge.knowledgeTerms.length} definitions</strong> across <strong>${PMKnowledge.knowledgeTopics.length} topics</strong> — from project charters and critical paths to inventory, maintenance and service operations.</p><small>Original summaries of common practice. Terminology varies by context and framework. Formula assumptions are provided; metric definitions do not imply every metric is implemented in this app.</small></div></div>${knowledgeSectionNavigation()}<div class="panel knowledge-controls"><label class="knowledge-search"><input id="knowledge-search" aria-label="Search definitions" placeholder="Search a term, acronym or concept…" value="${escape(knowledgeFilters.query)}"></label><div class="knowledge-filter-row"><label>Topic<select id="knowledge-topic" aria-label="Knowledge topic"><option value="All">All topics (${PMKnowledge.knowledgeTerms.length})</option>${PMKnowledge.knowledgeTopics.map((t) => `<option value="${t.id}" ${knowledgeFilters.category === t.id ? "selected" : ""}>${escape(t.name)} (${PMKnowledge.knowledgeTerms.filter((k) => k.category === t.id).length})</option>`).join("")}</select></label><div class="knowledge-switch"><button data-action="knowledge-all" aria-pressed="${!knowledgeFilters.favouritesOnly}" class="${knowledgeFilters.favouritesOnly ? "" : "active"}">All terms</button><button data-action="knowledge-saved" aria-pressed="${knowledgeFilters.favouritesOnly}" class="${knowledgeFilters.favouritesOnly ? "active" : ""}">Saved (${knowledgeSaved.length})</button></div><button class="text-link" data-action="knowledge-clear">Clear filters</button></div><div class="knowledge-alphabet" role="group" aria-label="Filter terms by first letter">${["All", "#", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"].map((l) => `<button data-action="knowledge-letter" data-id="${l}" aria-label="${l === "All" ? "All first letters" : l === "#" ? "Terms starting with a number" : "Terms starting with " + l}" aria-pressed="${l === knowledgeFilters.letter}" class="${l === knowledgeFilters.letter ? "active" : ""}">${l}</button>`).join("")}</div></div><div class="knowledge-results-heading"><p role="status">${results.length} ${results.length === 1 ? "definition" : "definitions"} found</p><small>Saved terms stay in this browser. Edition ${PMKnowledge.knowledgeEdition}.</small></div>${
       results.length
         ? `<div class="knowledge-grid">${results
             .slice(0, knowledgeLimit)
@@ -101,6 +140,9 @@ document.addEventListener("click", (event) => {
     } else if (a === "exit-knowledge") {
       knowledgeOpen = false;
       render();
+    } else if (a === "knowledge-section") {
+      knowledgeSection = id;
+      renderKnowledge();
     } else if (a === "knowledge-detail") {
       openKnowledgeTerm(id);
     } else if (a === "knowledge-close") {

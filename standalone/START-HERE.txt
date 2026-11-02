@@ -27,3 +27,14 @@ Selected terms include formulas, conditions and illustrative examples.
 The definitions work offline; external further-reading links need internet.
 Bookmarks stay in this browser. Summaries are an educational reference; use your
 organisation's required definitions for formal decisions.
+
+LEARN & REFRESH
+The Knowledge Centre now opens with 24 practical lessons, six learning paths and
+48 scenario questions. Each lesson includes a worked decision, common mistakes,
+an application task and further reading. Passing a practice check schedules
+reviews after 1, 3, 7, 14 and 30 days. Your progress stays in this browser.
+Use Practice lab for earned value, PERT, flow and equipment-effectiveness
+exercises. Current guidance contains dated official-source summaries; it is a
+curated snapshot, not a live feed. Click Glossary for the searchable definitions.
+Lessons and calculations work offline; external reading requires internet.
+Practice passes do not award certification, training hours or PDUs.

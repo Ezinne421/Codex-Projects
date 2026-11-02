@@ -1,4 +1,5 @@
 import "./knowledge.css";
+import LearningHub, { type LearningSection } from "./LearningHub";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpen,
@@ -37,6 +38,7 @@ export default function KnowledgeCentre({
 }: {
   storageKey?: string;
 }) {
+  const [section, setSection] = useState<LearningSection | "glossary">("learn");
   const [query, setQuery] = useState(""),
     [category, setCategory] = useState("All"),
     [letter, setLetter] = useState("All"),
@@ -122,15 +124,20 @@ export default function KnowledgeCentre({
             A LITTLE KNOWLEDGE. A CLEARER WAY FORWARD.
           </span>
           <h1>Knowledge Centre</h1>
-          <p>Project and operations management, in plain language.</p>
+          <p>
+            Learn, practise and refresh your project and operations management
+            skills.
+          </p>
         </div>
-        <button
-          className="button secondary"
-          onClick={exportCsv}
-          disabled={!results.length}
-        >
-          <Download size={16} /> Export glossary CSV
-        </button>
+        {section === "glossary" && (
+          <button
+            className="button secondary"
+            onClick={exportCsv}
+            disabled={!results.length}
+          >
+            <Download size={16} /> Export glossary CSV
+          </button>
+        )}
       </div>
       <div className="knowledge-intro">
         <div className="knowledge-mark">
@@ -142,7 +149,8 @@ export default function KnowledgeCentre({
             <strong>{knowledgeTerms.length} definitions</strong> across{" "}
             <strong>{knowledgeTopics.length} topics</strong> — from project
             charters and critical paths to inventory, maintenance and service
-            operations.
+            operations — plus practical lessons, learning paths and worked
+            exercises.
           </p>
           <small>
             Original summaries of common practice. Terminology varies by context
@@ -151,190 +159,232 @@ export default function KnowledgeCentre({
           </small>
         </div>
       </div>
-      {notice && (
-        <div className="alert" role="status">
-          {notice}
-        </div>
-      )}
-      <div className="panel knowledge-controls">
-        <label className="knowledge-search">
-          <Search size={20} />
-          <span className="sr-only">Search definitions</span>
-          <input
-            aria-label="Search definitions"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search a term, acronym or concept — e.g. CPI, procurement, lead time…"
-          />
-        </label>
-        <div className="knowledge-filter-row">
-          <label>
-            Topic
-            <select
-              aria-label="Knowledge topic"
-              value={category}
-              onChange={(e) => {
-                setCategory(e.target.value);
-                setLetter("All");
-              }}
-            >
-              <option value="All">All topics ({knowledgeTerms.length})</option>
-              {knowledgeTopics.map((t) => (
-                <option value={t.id} key={t.id}>
-                  {t.name} (
-                  {knowledgeTerms.filter((k) => k.category === t.id).length})
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="knowledge-switch" aria-label="Choose glossary view">
-            <button
-              type="button"
-              aria-pressed={!favouritesOnly}
-              className={!favouritesOnly ? "active" : ""}
-              onClick={() => setFavouritesOnly(false)}
-            >
-              All terms
-            </button>
-            <button
-              type="button"
-              aria-pressed={favouritesOnly}
-              className={favouritesOnly ? "active" : ""}
-              onClick={() => setFavouritesOnly(true)}
-            >
-              <Bookmark size={13} /> Saved ({saved.length})
-            </button>
-          </div>
-          <button className="text-link" onClick={reset}>
-            Clear filters
+      <nav
+        className="knowledge-sections"
+        aria-label="Knowledge Centre sections"
+      >
+        {[
+          ["learn", "Learn & refresh"],
+          ["glossary", "Glossary"],
+          ["tools", "Practice lab"],
+          ["updates", "Current guidance"],
+        ].map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={section === id}
+            className={section === id ? "active" : ""}
+            onClick={() => setSection(id as typeof section)}
+          >
+            {label}
           </button>
-        </div>
-        <div
-          className="knowledge-alphabet"
-          role="group"
-          aria-label="Filter terms by first letter"
-        >
-          {alphabet.map((l) => (
-            <button
-              type="button"
-              key={l}
-              aria-label={
-                l === "All"
-                  ? "All first letters"
-                  : l === "#"
-                    ? "Terms starting with a number"
-                    : `Terms starting with ${l}`
-              }
-              aria-pressed={letter === l}
-              className={letter === l ? "active" : ""}
-              onClick={() => setLetter(l)}
-            >
-              {l}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="knowledge-results-heading">
-        <p role="status">
-          {results.length} {results.length === 1 ? "definition" : "definitions"}{" "}
-          found{category !== "All" ? ` in ${categoryName(category)}` : ""}
-        </p>
-        <small>
-          Saved terms stay in this browser. Edition {knowledgeEdition}.
-        </small>
-      </div>
-      {results.length ? (
+        ))}
+      </nav>
+      {section !== "glossary" ? (
+        <LearningHub
+          section={section}
+          storageKey={storageKey}
+          terms={knowledgeTerms}
+          onOpenTerm={setSelectedId}
+          onSectionChange={setSection}
+        />
+      ) : (
         <>
-          <div className="knowledge-grid">
-            {results.slice(0, limit).map((t) => (
-              <article className="knowledge-card" key={t.id}>
-                <div className="knowledge-card-top">
-                  <span>{categoryName(t.category)}</span>
-                  {saveButton(t)}
-                </div>
-                <h2>
-                  <button onClick={() => setSelectedId(t.id)}>{t.name}</button>
-                </h2>
-                {t.aliases.length > 0 && (
-                  <div className="knowledge-aliases">
-                    {t.aliases.map((alias) => (
-                      <span key={alias}>{alias}</span>
-                    ))}
-                  </div>
-                )}
-                <p>{t.definition}</p>
-                <button
-                  className="text-link"
-                  onClick={() => setSelectedId(t.id)}
+          {notice && (
+            <div className="alert" role="status">
+              {notice}
+            </div>
+          )}
+          <div className="panel knowledge-controls">
+            <label className="knowledge-search">
+              <Search size={20} />
+              <span className="sr-only">Search definitions</span>
+              <input
+                aria-label="Search definitions"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search a term, acronym or concept — e.g. CPI, procurement, lead time…"
+              />
+            </label>
+            <div className="knowledge-filter-row">
+              <label>
+                Topic
+                <select
+                  aria-label="Knowledge topic"
+                  value={category}
+                  onChange={(e) => {
+                    setCategory(e.target.value);
+                    setLetter("All");
+                  }}
                 >
-                  Explore definition{" "}
-                  {t.formula && (
-                    <span className="knowledge-formula-badge">Formula</span>
-                  )}
-                  <ArrowRight size={14} />
-                </button>
-              </article>
-            ))}
-          </div>
-          {results.length > limit && (
-            <div className="knowledge-load">
-              <p>
-                Showing {Math.min(limit, results.length)} of {results.length}{" "}
-                definitions
-              </p>
-              <button
-                className="button secondary"
-                onClick={() => setLimit((n) => n + perPage)}
+                  <option value="All">
+                    All topics ({knowledgeTerms.length})
+                  </option>
+                  {knowledgeTopics.map((t) => (
+                    <option value={t.id} key={t.id}>
+                      {t.name} (
+                      {knowledgeTerms.filter((k) => k.category === t.id).length}
+                      )
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div
+                className="knowledge-switch"
+                aria-label="Choose glossary view"
               >
-                Show more definitions
+                <button
+                  type="button"
+                  aria-pressed={!favouritesOnly}
+                  className={!favouritesOnly ? "active" : ""}
+                  onClick={() => setFavouritesOnly(false)}
+                >
+                  All terms
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={favouritesOnly}
+                  className={favouritesOnly ? "active" : ""}
+                  onClick={() => setFavouritesOnly(true)}
+                >
+                  <Bookmark size={13} /> Saved ({saved.length})
+                </button>
+              </div>
+              <button className="text-link" onClick={reset}>
+                Clear filters
+              </button>
+            </div>
+            <div
+              className="knowledge-alphabet"
+              role="group"
+              aria-label="Filter terms by first letter"
+            >
+              {alphabet.map((l) => (
+                <button
+                  type="button"
+                  key={l}
+                  aria-label={
+                    l === "All"
+                      ? "All first letters"
+                      : l === "#"
+                        ? "Terms starting with a number"
+                        : `Terms starting with ${l}`
+                  }
+                  aria-pressed={letter === l}
+                  className={letter === l ? "active" : ""}
+                  onClick={() => setLetter(l)}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="knowledge-results-heading">
+            <p role="status">
+              {results.length}{" "}
+              {results.length === 1 ? "definition" : "definitions"} found
+              {category !== "All" ? ` in ${categoryName(category)}` : ""}
+            </p>
+            <small>
+              Saved terms stay in this browser. Edition {knowledgeEdition}.
+            </small>
+          </div>
+          {results.length ? (
+            <>
+              <div className="knowledge-grid">
+                {results.slice(0, limit).map((t) => (
+                  <article className="knowledge-card" key={t.id}>
+                    <div className="knowledge-card-top">
+                      <span>{categoryName(t.category)}</span>
+                      {saveButton(t)}
+                    </div>
+                    <h2>
+                      <button onClick={() => setSelectedId(t.id)}>
+                        {t.name}
+                      </button>
+                    </h2>
+                    {t.aliases.length > 0 && (
+                      <div className="knowledge-aliases">
+                        {t.aliases.map((alias) => (
+                          <span key={alias}>{alias}</span>
+                        ))}
+                      </div>
+                    )}
+                    <p>{t.definition}</p>
+                    <button
+                      className="text-link"
+                      onClick={() => setSelectedId(t.id)}
+                    >
+                      Explore definition{" "}
+                      {t.formula && (
+                        <span className="knowledge-formula-badge">Formula</span>
+                      )}
+                      <ArrowRight size={14} />
+                    </button>
+                  </article>
+                ))}
+              </div>
+              {results.length > limit && (
+                <div className="knowledge-load">
+                  <p>
+                    Showing {Math.min(limit, results.length)} of{" "}
+                    {results.length} definitions
+                  </p>
+                  <button
+                    className="button secondary"
+                    onClick={() => setLimit((n) => n + perPage)}
+                  >
+                    Show more definitions
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="panel empty">
+              <BookOpen size={28} />
+              <h3>
+                {favouritesOnly && !saved.length
+                  ? "Build your own reference list"
+                  : "No matching definitions"}
+              </h3>
+              <p>
+                {favouritesOnly && !saved.length
+                  ? "Save any term using its bookmark button, then find it here."
+                  : "Try a broader search, another topic or a different first letter."}
+              </p>
+              <button className="button secondary" onClick={reset}>
+                Clear filters
               </button>
             </div>
           )}
-        </>
-      ) : (
-        <div className="panel empty">
-          <BookOpen size={28} />
-          <h3>
-            {favouritesOnly && !saved.length
-              ? "Build your own reference list"
-              : "No matching definitions"}
-          </h3>
-          <p>
-            {favouritesOnly && !saved.length
-              ? "Save any term using its bookmark button, then find it here."
-              : "Try a broader search, another topic or a different first letter."}
-          </p>
-          <button className="button secondary" onClick={reset}>
-            Clear filters
-          </button>
-        </div>
-      )}
-      <div className="knowledge-editorial">
-        <strong>How to use this reference</strong>
-        <p>
-          These definitions support learning and discussion. Use the definition
-          required by your organisation, contract or professional framework when
-          making formal decisions. Examples are illustrative, not verified
-          project records. Linked organisations provide further reading; they
-          have not endorsed this app.
-        </p>
-        <details>
-          <summary>Sources & further reading</summary>
-          <div className="knowledge-source-list">
-            {Object.values(knowledgeSources).map((s) => (
-              <a
-                key={s.url}
-                href={s.url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {s.name}
-                <ExternalLink size={12} />
-              </a>
-            ))}
+          <div className="knowledge-editorial">
+            <strong>How to use this reference</strong>
+            <p>
+              These definitions support learning and discussion. Use the
+              definition required by your organisation, contract or professional
+              framework when making formal decisions. Examples are illustrative,
+              not verified project records. Linked organisations provide further
+              reading; they have not endorsed this app.
+            </p>
+            <details>
+              <summary>Sources & further reading</summary>
+              <div className="knowledge-source-list">
+                {Object.values(knowledgeSources).map((s) => (
+                  <a
+                    key={s.url}
+                    href={s.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {s.name}
+                    <ExternalLink size={12} />
+                  </a>
+                ))}
+              </div>
+            </details>
           </div>
-        </details>
-      </div>
+        </>
+      )}
       <dialog
         ref={dialog}
         className="knowledge-dialog"
