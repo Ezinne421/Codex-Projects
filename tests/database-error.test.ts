@@ -6,7 +6,7 @@ test("database diagnostics classify failures without including raw credential-be
   const cases: [unknown, string][] = [
     [
       { message: `Connection terminated due to connection timeout ${secret}` },
-      "DATABASE_CONNECTION_TIMEOUT",
+      "DATABASE_CONNECT_TIMEOUT",
     ],
     [
       {

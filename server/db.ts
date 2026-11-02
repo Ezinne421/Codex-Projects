@@ -68,6 +68,7 @@ async function serialLease() {
   return unlock;
 }
 let initializationStage = "configuration";
+let databaseShape: Record<string, boolean | number> = {};
 const rootReady = (async () => {
   if (testPg) {
     const { PGlite } = await import("@electric-sql/pglite");
@@ -86,8 +87,17 @@ const rootReady = (async () => {
         throw Error("Database integer outside supported range");
       return n;
     });
+    const connectionConfig = verifiedDatabaseConfig(process.env.DATABASE_URL!);
+    databaseShape = {
+      supabasePooler: /\.pooler\.supabase\.com$/i.test(
+        connectionConfig.host || "",
+      ),
+      port: connectionConfig.port || 5432,
+      qualifiedUsername: !!connectionConfig.user?.includes("."),
+      passwordConfigured: !!connectionConfig.password,
+    };
     pool = new Pool({
-      ...verifiedDatabaseConfig(process.env.DATABASE_URL!),
+      ...connectionConfig,
       max: 5,
       connectionTimeoutMillis: 10000,
       idleTimeoutMillis: 20000,
@@ -108,6 +118,7 @@ const rootReady = (async () => {
     sqliteRoot = openSqlite(join(dataDir, "auth.sqlite"));
     sqliteRoot.exec(authSchema);
   }
+  initializationStage = "ready";
 })();
 void rootReady.catch((error) =>
   console.error(
@@ -294,7 +305,17 @@ export async function requestDatabase(
     res.once("close", finish);
     scopes.run(scope, () => next());
   } catch (error) {
-    console.error("Persistent database unavailable", databaseErrorTag(error));
+    console.error(
+      "Persistent database unavailable",
+      initializationStage,
+      databaseErrorTag(error),
+      {
+        ...databaseShape,
+        clients: pool?.totalCount || 0,
+        idle: pool?.idleCount || 0,
+        waiting: pool?.waitingCount || 0,
+      },
+    );
     res.status(503).json({
       error:
         "The database is temporarily unavailable. Please try again shortly.",

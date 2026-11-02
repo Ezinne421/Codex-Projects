@@ -13,6 +13,10 @@ export function databaseErrorTag(error: unknown): string {
     return "DATABASE_PASSWORD_MISSING";
   if (text.includes("tenant or user"))
     return "DATABASE_USER_OR_TENANT_NOT_FOUND";
+  if (text.startsWith("connection terminated due to connection timeout"))
+    return "DATABASE_CONNECT_TIMEOUT";
+  if (text.startsWith("timeout exceeded when trying to connect"))
+    return "DATABASE_POOL_WAIT_TIMEOUT";
   if (text.includes("timeout") || text.includes("timed out"))
     return "DATABASE_CONNECTION_TIMEOUT";
   if (
