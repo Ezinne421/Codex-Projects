@@ -951,6 +951,87 @@
     flex-shrink: 1;
   }
 }
+.knowledge-depth-filters {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding-top: 18px;
+  font-size: 11px;
+  color: #587b68;
+}
+.knowledge-depth-filters label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 400;
+  cursor: pointer;
+}
+.knowledge-depth-filters input {
+  accent-color: #137b69;
+  width: auto;
+  margin: 0;
+}
+.knowledge-application,
+.knowledge-pitfall {
+  margin: 22px 0;
+  padding: 17px 20px;
+  border-left: 3px solid #83ad95;
+  background: #f3f7ef;
+  border-radius: 0 7px 7px 0;
+}
+.knowledge-pitfall {
+  background: #faf6ed;
+  border-color: #c4ae7e;
+}
+.knowledge-comparisons {
+  margin: 26px 0;
+}
+.knowledge-comparisons article {
+  padding: 16px 18px;
+  border: 1px solid #dbe7df;
+  border-radius: 7px;
+  margin-top: 10px;
+}
+.knowledge-comparisons p {
+  font-size: 12px;
+  line-height: 1.9;
+  color: #5f7e6d;
+}
+.knowledge-comparisons .text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #137769;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 0 7px;
+}
+.knowledge-depth-note {
+  font-size: 11px;
+  line-height: 1.9;
+  color: #6f8779;
+  margin: 10px 0 20px;
+}
+@media (max-width: 600px) {
+  .knowledge-depth-filters {
+    gap: 12px;
+    flex-direction: column;
+  }
+  .knowledge-application,
+  .knowledge-pitfall,
+  .knowledge-comparisons article {
+    padding: 15px;
+  }
+  .knowledge-sections {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: visible;
+  }
+  .knowledge-sections button {
+    white-space: normal;
+    text-align: center;
+  }
+}
 
 header .buttons{flex-shrink:0}@media(max-width:600px){header{height:auto;min-height:80px;flex-wrap:wrap;padding:15px 20px}header .buttons{flex-wrap:wrap}}
 </style>
@@ -1407,13 +1488,893 @@ var PMKnowledge = (() => {
     knowledgeEdition: () => knowledgeEdition,
     knowledgeSlug: () => knowledgeSlug,
     knowledgeSources: () => knowledgeSources,
+    knowledgeStats: () => knowledgeStats,
     knowledgeTerms: () => knowledgeTerms,
     knowledgeTopics: () => knowledgeTopics,
     searchKnowledge: () => searchKnowledge
   });
 
+  // shared/knowledge/insights.ts
+  var insight = (example, practicalUse, pitfall) => ({ example, practicalUse, pitfall, reviewed: "2026-11-02" });
+  var termInsights = {
+    project: insight(
+      "A time-limited warehouse relocation is a project; the continuing dispatch operation is not.",
+      "Define the intended change, boundaries, authority and transition to operations.",
+      "Temporary does not mean short, and unique does not mean every activity is novel."
+    ),
+    programme: insight(
+      "A rural health programme coordinates facilities, staffing and operating changes to improve access.",
+      "Manage cross-project dependencies and the organisational changes needed for benefits.",
+      "A group of unrelated projects is not automatically a programme."
+    ),
+    portfolio: insight(
+      "A portfolio combines service improvements and capital investments selected against shared strategic priorities.",
+      "Reassess the mix against strategy, capacity, risk and changing evidence.",
+      "Project-level success does not automatically create the best overall investment mix."
+    ),
+    output: insight(
+      "A completed training session is an output; changed practice is an outcome requiring separate evidence.",
+      "Track delivery and separately test whether the intended change occurs.",
+      "Do not claim an outcome merely because a deliverable was accepted."
+    ),
+    outcome: insight(
+      "Faster case processing follows adoption of a new workflow; software installation alone is an output.",
+      "Define a baseline, measure, timeframe and owner for the intended change.",
+      "Observed change does not by itself establish that the project caused it."
+    ),
+    impact: insight(
+      "A livelihood intervention investigates longer-term household effects alongside other contributing factors.",
+      "Use a credible causal explanation and evaluation design appropriate to the claim.",
+      "Longer-term impact cannot be inferred from attendance or spending alone."
+    ),
+    "business-case": insight(
+      "A board compares refurbishment, replacement and a do-minimum option with lifecycle assumptions.",
+      "Revisit whether the remaining investment is justified when critical assumptions change.",
+      "Sunk spending is not a sufficient reason to continue."
+    ),
+    "benefits-realisation": insight(
+      "An operations owner tracks whether a new process actually reduces verified turnaround times.",
+      "Assign benefit ownership and measurement beyond the delivery team's closure date.",
+      "A benefit forecast is not evidence of realised value."
+    ),
+    risk: insight(
+      "Possible seasonal flooding threatens site access before mobilisation.",
+      "Record cause, uncertain event, consequence, owner, response and trigger.",
+      "An event that has already occurred also needs issue management."
+    ),
+    issue: insight(
+      "A permit refusal has already stopped the planned site work.",
+      "Assign a response, owner and escalation deadline while considering further risks.",
+      "Renaming an occurred problem as a risk can defer necessary action."
+    ),
+    assumption: insight(
+      "A plan assumes a supplier can deliver in six weeks pending actual confirmation.",
+      "Name an owner, evidence needed and a date for testing important assumptions.",
+      "An assumption is not a verified fact or an imposed constraint."
+    ),
+    constraint: insight(
+      "A fixed possession window restricts when railway work can be performed.",
+      "Model its real effect and identify who can authorise a change if it is negotiable.",
+      "Distinguish a genuine external limit from an untested planning preference."
+    ),
+    "quality-assurance": insight(
+      "An assurance review checks whether the process and responsibilities support reliable inspection evidence.",
+      "Examine process design and operation before relying solely on end-stage testing.",
+      "Assurance does not mean every output has been inspected or is defect-free."
+    ),
+    "quality-control": insight(
+      "A batch is tested against agreed acceptance criteria before release.",
+      "Specify checks, evidence, competent responsibility and treatment of failures.",
+      "Inspection alone cannot correct an incapable underlying process."
+    ),
+    verification: insight(
+      "Testing confirms a pump achieves its specified flow under the agreed conditions.",
+      "Trace requirements to test evidence and address any nonconformities.",
+      "Meeting a specification does not prove the specification addresses the user's need."
+    ),
+    validation: insight(
+      "Users test whether the installed service actually works for the intended operating situation.",
+      "Test relevant use conditions and obtain appropriate user or acceptance evidence.",
+      "A successful technical test alone may not establish fitness for intended use."
+    ),
+    "critical-path": insight(
+      "With parallel paths of 10 and 12 days, the 12-day path governs earliest finish in a simple unconstrained network.",
+      "Assess feasible acceleration and near-critical paths using an up-to-date network.",
+      "The most expensive or visible activity is not necessarily critical."
+    ),
+    "critical-chain": insight(
+      "Two tasks share a specialist, so resource constraints change the feasible chain and buffer strategy.",
+      "State resource assumptions and the method used to govern shared buffers.",
+      "Critical-chain practice is more than renaming the critical path."
+    ),
+    "resource-levelling": insight(
+      "One crane serves two logically parallel tasks, so work is resequenced and completion may move.",
+      "Resolve resource overloads and communicate the resulting dates and trade-offs.",
+      "Levelling can change the critical path and project finish."
+    ),
+    "resource-smoothing": insight(
+      "Work is shifted within available float to reduce peaks while preserving the governing completion constraint.",
+      "Check resource improvements against float, logic and the scheduling method.",
+      "Smoothing cannot always eliminate all resource shortages."
+    ),
+    duration: insight(
+      "A task lasts three working days even though only one person-day of effort is needed.",
+      "State calendar, working-time assumptions and resource availability.",
+      "Elapsed duration and labour effort are different quantities."
+    ),
+    effort: insight(
+      "Two people each working four hours contribute eight person-hours of effort.",
+      "Estimate work content separately from duration and productivity assumptions.",
+      "Doubling people does not necessarily halve elapsed time."
+    ),
+    "cycle-time": insight(
+      "A case enters active processing on Monday and reaches the defined completion event on Thursday.",
+      "Define start and finish consistently before comparing items or forecasting.",
+      "Different teams may use cycle time for different boundaries."
+    ),
+    "lead-time": insight(
+      "A customer waits from request submission through the queue until the defined delivered result.",
+      "Measure the full boundary relevant to the customer or decision.",
+      "A shorter internal processing time may leave total waiting unchanged."
+    ),
+    budget: insight(
+      "An approved cost plan remains the reference while the current forecast predicts a higher final cost.",
+      "Separate authorisation, baseline comparison, actuals and the latest expectation.",
+      "Changing the forecast does not automatically authorise a budget change."
+    ),
+    forecast: insight(
+      "Current procurement evidence changes the expected completion cost without changing the approved baseline.",
+      "Explain assumptions, status date and the reasons for changes since the previous forecast.",
+      "A forecast is an estimate, not a new approval or a guarantee."
+    ),
+    "cost-performance-index": insight(
+      "Earned value 80,000 and actual cost 100,000 produce CPI 0.80.",
+      "Use comparable scope, currency and status dates and challenge unreliable progress measures.",
+      "Cost efficiency against budgeted work is not profit margin."
+    ),
+    "schedule-performance-index": insight(
+      "Earned value 80,000 against planned value 100,000 gives SPI 0.80.",
+      "Use the schedule network to investigate actual time consequences and remaining work.",
+      "SPI 0.80 does not establish an exact 20% calendar delay."
+    ),
+    "estimate-at-completion": insight(
+      "BAC 200,000 divided by CPI 0.80 yields a conditional forecast of 250,000.",
+      "Choose a forecasting method matching the expected conditions of remaining work.",
+      "BAC divided by CPI assumes current efficiency continues."
+    ),
+    "cost-variance": insight(
+      "EV 80,000 minus AC 100,000 gives an earned-value cost variance of \u221220,000.",
+      "Explain the work actually earned alongside actual spending.",
+      "Unspent budget is not necessarily a saving when planned work is incomplete."
+    ),
+    procurement: insight(
+      "A programme moves from a defined need through sourcing, award and contract performance oversight.",
+      "Connect requirements, market analysis, transparent evaluation and contract management.",
+      "Procurement is broader than placing an order or obtaining quotations."
+    ),
+    sourcing: insight(
+      "A team researches potential supply options and decides how to approach the market.",
+      "Consider capability, competition, risk and relevant purchasing rules before selection.",
+      "Sourcing alone does not cover every post-award obligation."
+    ),
+    "contract-variation": insight(
+      "An authorised change adds a site and requires assessment under the contract's valuation and time provisions.",
+      "Check instruction authority, scope, notices and the commercial consequences.",
+      "A variation and a claim are related but different concepts."
+    ),
+    "fixed-price-contract": insight(
+      "A supplier agrees a defined price for defined scope while specific change provisions still apply.",
+      "Clarify scope, assumptions, allocation of risk and permitted adjustments.",
+      "Fixed price does not mean no possible changes or no buyer risk."
+    ),
+    "cost-reimbursable-contract": insight(
+      "A buyer reimburses eligible documented costs with a defined fee under agreed controls.",
+      "Define allowable costs, evidence, fee rules and appropriate oversight.",
+      "Reimbursement is not necessarily unlimited payment for every cost incurred."
+    ),
+    "local-content": insight(
+      "A project checks applicable country and sector requirements for local participation and auditable evidence.",
+      "Identify the actual obligations before setting supplier or workforce targets.",
+      "There is no universal local-content rule for all African jurisdictions."
+    ),
+    "community-engagement": insight(
+      "Affected residents help identify access impacts before a site layout is selected.",
+      "Provide accessible two-way engagement and record how evidence informs decisions.",
+      "Consultation, representation and legally required consent are not interchangeable."
+    ),
+    "exchange-rate": insight(
+      "USD 10,000 costs NGN 15m at an illustrative 1,500 rate and NGN 16.5m at 1,650.",
+      "State source, date, currency direction and scenario assumptions in forecasts.",
+      "Illustrative rates are not current market quotations."
+    ),
+    "safety-stock": insight(
+      "A replenishment policy includes a defined buffer for uncertainty beyond expected lead-time demand.",
+      "Connect the quantity to service objectives, variability and the policy model.",
+      "One standard-deviation formula is not a universal stock rule."
+    ),
+    "reorder-point": insight(
+      "Demand of 20 units/day for five days plus safety stock of 30 gives a reorder point of 130 units.",
+      "Use consistent units and specify whether the policy observes inventory position.",
+      "A reorder trigger is not the order quantity."
+    ),
+    "economic-order-quantity": insight(
+      "A buyer explores the basic cost-balancing quantity under steady demand and stated holding and ordering costs.",
+      "Test the model against constraints, discounts, variability and actual service needs.",
+      "The basic EOQ model does not automatically optimise a complex supply chain."
+    ),
+    "mean-time-to-repair": insight(
+      "A team measures elapsed repair time under a stated start and restoration boundary.",
+      "Define the population, included waiting and time boundary before comparing performance.",
+      "MTTR can stand for different recovery or repair measures; specify the intended definition."
+    ),
+    "overall-equipment-effectiveness": insight(
+      "Availability 90%, performance 95% and quality 98% give OEE 83.79%.",
+      "Use consistent component definitions and investigate the actual sources of loss.",
+      "Multiply fractions, not whole percentages, when calculating the combined ratio."
+    ),
+    "organisational-change-management": insight(
+      "A workflow rollout includes role changes, engagement, training, support and evidence of adoption.",
+      "Assess impacts and readiness and reinforce workable new behaviours after launch.",
+      "Project delivery and course attendance do not alone establish adoption."
+    ),
+    "change-readiness": insight(
+      "A team assesses whether staff, supervisors and support processes can implement a proposed change.",
+      "Investigate practical barriers, capacity and willingness before relying on a launch date.",
+      "Readiness before launch is not proof of subsequent adoption."
+    ),
+    "key-performance-indicator": insight(
+      "A service tracks a defined response-time measure with an owner, threshold and agreed action.",
+      "Specify denominator, source, refresh cadence, quality checks and decision purpose.",
+      "A measure can be easy to count without being useful for a decision."
+    ),
+    "monte-carlo-simulation": insight(
+      "A schedule model samples uncertain durations repeatedly to explore a distribution of completion dates.",
+      "Validate logic and input assumptions and explain correlation and excluded risks.",
+      "More iterations do not correct a biased or incomplete model."
+    ),
+    "business-continuity": insight(
+      "A provider tests how priority services continue or recover during a major power or site disruption.",
+      "Define priorities, dependencies, roles, communication and practical tests.",
+      "A backup file or a generator alone is not a complete continuity capability."
+    ),
+    "landed-cost": insight(
+      "An importer includes relevant purchase, freight, duty and handling costs under the defined valuation boundary.",
+      "Check actual contractual allocation, applicable charges and current country requirements.",
+      "Incoterms do not determine every tax, title or payment obligation."
+    ),
+    handover: insight(
+      "A facility transfers with acceptance evidence, trained operators, support arrangements and tracked open items.",
+      "Confirm operational ownership, readiness, records and ongoing benefits responsibilities.",
+      "Technical completion alone does not establish a sustainable operating service."
+    )
+  };
+  var comparisonPairs = [
+    [
+      "project",
+      "programme",
+      "A project delivers a bounded change; a programme coordinates related projects and organisational change to pursue benefits requiring joint management."
+    ],
+    [
+      "programme",
+      "portfolio",
+      "A programme coordinates related change and benefits. A portfolio selects and governs an investment mix for strategic objectives; its components need not share a delivery outcome."
+    ],
+    [
+      "output",
+      "outcome",
+      "An output is produced or delivered. An outcome is a resulting change in behaviour or performance and needs separate evidence."
+    ],
+    [
+      "outcome",
+      "impact",
+      "An outcome is a defined change associated with an intervention. Impact concerns broader or higher-level effects; causal claims need an appropriate evaluation basis."
+    ],
+    [
+      "risk",
+      "issue",
+      "A risk concerns uncertainty. An issue is a condition or event that has occurred and needs management; it can also create further risks."
+    ],
+    [
+      "assumption",
+      "constraint",
+      "An assumption is accepted provisionally and should be tested. A constraint is a limit affecting choices; check whether an apparent limit is genuine or negotiable."
+    ],
+    [
+      "quality-assurance",
+      "quality-control",
+      "Quality assurance examines confidence in processes and controls. Quality control checks outputs against requirements; one does not replace the other."
+    ],
+    [
+      "verification",
+      "validation",
+      "Verification asks whether specified requirements were met. Validation asks whether the result is fit for its intended use in context."
+    ],
+    [
+      "critical-path",
+      "critical-chain",
+      "A conventional critical path follows governing schedule logic and calendars. Critical-chain practice explicitly considers resource constraints and shared buffer management."
+    ],
+    [
+      "resource-levelling",
+      "resource-smoothing",
+      "Levelling adjusts work to resolve resource constraints and may move the finish date. Smoothing seeks improvements within available scheduling flexibility and constraints."
+    ],
+    [
+      "duration",
+      "effort",
+      "Duration measures elapsed or working time under a calendar. Effort measures resource work such as person-hours; resources and productivity connect them without a universal fixed ratio."
+    ],
+    [
+      "cycle-time",
+      "lead-time",
+      "Both are elapsed-time measures with context-dependent boundaries. Lead time often begins at a request; cycle time often begins when work starts. Define both before comparing."
+    ],
+    [
+      "takt-time",
+      "cycle-time",
+      "Takt time expresses the production pace required by demand. Cycle time measures elapsed processing or workflow time under the chosen boundary."
+    ],
+    [
+      "budget",
+      "forecast",
+      "A budget is an authorised plan or reference. A forecast is the current expectation based on evidence; it does not itself change spending authority."
+    ],
+    [
+      "cost-performance-index",
+      "return-on-investment",
+      "CPI compares earned value with actual cost against a baseline. ROI compares investment gain with investment cost under a stated model; CPI is not a profitability measure."
+    ],
+    [
+      "estimate-at-completion",
+      "budget-at-completion",
+      "BAC is the approved total budget for the defined work. EAC forecasts its final cost and can differ from the budget without changing that authorisation."
+    ],
+    [
+      "procurement",
+      "sourcing",
+      "Sourcing investigates and selects supply approaches. Procurement covers a broader lifecycle of meeting a purchasing need, including award and relevant contract oversight."
+    ],
+    [
+      "fixed-price-contract",
+      "cost-reimbursable-contract",
+      "Fixed-price arrangements establish a price basis for defined scope. Cost-reimbursable arrangements pay eligible costs under agreed rules; both can include important limits and adjustments."
+    ],
+    [
+      "construction-claim",
+      "contract-variation",
+      "A variation changes contractual work or requirements through an applicable mechanism. A claim requests an entitlement or remedy; it may arise from events beyond variations."
+    ],
+    [
+      "extension-of-time",
+      "loss-and-expense",
+      "An extension of time adjusts a completion obligation. Additional payment is a separate entitlement question governed by the contract and law; time relief does not automatically establish cost recovery."
+    ],
+    [
+      "interim-payment-certificate",
+      "final-account",
+      "An interim certificate concerns a payment assessment during the contract. A final account reconciles the defined overall financial position, including adjustments and unresolved matters."
+    ],
+    [
+      "practical-completion",
+      "taking-over-certificate",
+      "Practical completion is a status under certain frameworks. A taking-over certificate is a particular contractual record with defined effects; the applicable terms determine any relationship."
+    ],
+    [
+      "arbitration",
+      "mediation",
+      "An arbitral tribunal decides matters through an award under its legal framework. A mediator helps parties seek agreement and does not automatically impose an award."
+    ],
+    [
+      "adjudication",
+      "arbitration",
+      "These are different dispute-decision processes. Availability, procedure, enforceability and whether a decision is interim or final depend on the agreement and governing law."
+    ],
+    [
+      "portfolio-prioritisation",
+      "portfolio-balancing",
+      "Prioritisation compares relative importance or order. Balancing examines the combined mix across dimensions such as risk, timing and scarce capacity."
+    ],
+    [
+      "weighted-scoring-model",
+      "portfolio-optimisation",
+      "A scoring model ranks or evaluates against weighted criteria. Optimisation selects a combination under explicit objectives and constraints; neither removes judgement or weak evidence."
+    ],
+    [
+      "coaching",
+      "mentoring",
+      "Coaching commonly supports reflection and performance through questions and feedback. Mentoring commonly shares experience and perspective; real relationships can combine both."
+    ],
+    [
+      "change-readiness",
+      "change-adoption",
+      "Readiness assesses conditions for implementing change. Adoption concerns actual use and sustained behaviour after implementation."
+    ],
+    [
+      "change-adoption",
+      "learning-transfer",
+      "Adoption concerns use of a changed process or capability. Learning transfer concerns applying learning in work; training can support adoption but does not establish it."
+    ],
+    [
+      "continuous-integration",
+      "continuous-delivery",
+      "Continuous integration frequently merges and checks changes. Continuous delivery extends practices toward a reliably releasable state, with production release still potentially a separate decision."
+    ],
+    [
+      "continuous-delivery",
+      "continuous-deployment",
+      "Continuous delivery maintains release readiness. Continuous deployment automatically sends qualifying changes to production without a separate manual release decision."
+    ],
+    [
+      "change-lead-time",
+      "lead-time",
+      "DORA-style change lead time uses a defined code-change-to-production boundary. General lead time may span a customer request, purchasing process or other system boundary."
+    ],
+    [
+      "failed-deployment-recovery-time",
+      "mean-time-to-repair",
+      "Failed deployment recovery time focuses on recovery from failed production changes. MTTR is used for different repair or recovery populations and boundaries; define it before comparison."
+    ],
+    [
+      "retrieval-augmented-generation",
+      "model-hallucination",
+      "RAG supplies retrieved material to a generative model. It can support grounding but does not eliminate hallucination, stale sources or unsupported interpretation."
+    ],
+    [
+      "digital-twin",
+      "building-information-modelling",
+      "BIM concerns structured built-asset information and collaboration. A digital twin represents a physical system with relevant maintained data for defined decisions; implementations may overlap."
+    ],
+    [
+      "ai-governance",
+      "human-in-the-loop-review",
+      "AI governance defines policies, accountability and lifecycle oversight. Human review is one possible control and needs clear authority, competence and evidence."
+    ],
+    [
+      "process-batch",
+      "transfer-batch",
+      "A process batch is handled together before a production boundary such as a setup. A transfer batch moves onward together and can be smaller to reduce waiting."
+    ],
+    [
+      "available-to-promise",
+      "capable-to-promise",
+      "ATP considers supply available for commitment under a policy. CTP additionally evaluates relevant production and resource capability for a proposed commitment."
+    ],
+    [
+      "material-requirements-planning",
+      "manufacturing-resource-planning",
+      "MRP calculates time-phased material needs. MRP II integrates broader manufacturing resources and related planning information."
+    ],
+    [
+      "balking",
+      "reneging",
+      "Balking means not joining the queue. Reneging means joining and then leaving before receiving the intended service."
+    ],
+    [
+      "gross-margin-per-hectare",
+      "profit-margin",
+      "Agricultural gross margin per hectare subtracts specified variable costs and divides by land area. Profit margin uses a stated profit measure divided by revenue; cost coverage and units differ."
+    ],
+    [
+      "health-technology-assessment",
+      "life-cycle-costing",
+      "Lifecycle costing assesses relevant costs across a chosen boundary. HTA additionally evaluates appropriate clinical, organisational, ethical and other evidence for a health-technology decision."
+    ],
+    [
+      "post-harvest-loss",
+      "inventory-obsolescence",
+      "Post-harvest loss concerns quantity or quality reduction within a defined agricultural chain. Obsolescence concerns inventory losing usefulness or value, which need not involve physical loss."
+    ],
+    [
+      "local-content",
+      "supplier-localisation",
+      "Local content concerns participation or value under specified definitions and obligations. Supplier localisation is a sourcing strategy; using a nearby supplier does not automatically demonstrate compliance."
+    ],
+    [
+      "rules-of-origin",
+      "preferential-tariff-treatment",
+      "Origin rules help establish eligibility under a trade arrangement. Preferential treatment also depends on the relevant tariff schedule, implementation and required evidence."
+    ],
+    [
+      "community-engagement",
+      "free-prior-and-informed-consent",
+      "Engagement is continuing involvement and dialogue. FPIC is a particular consent-related standard applicable in defined contexts; general consultation does not automatically satisfy it."
+    ],
+    [
+      "land-tenure-due-diligence",
+      "customary-land-rights",
+      "Due diligence investigates the applicable rights and constraints. Customary rights are one possible category of interests requiring competent assessment under local law and context."
+    ],
+    [
+      "arrival-rate",
+      "service-rate",
+      "Arrival rate measures incoming workload per unit time. Service rate describes completion capability per server or resource under stated conditions; match units and populations."
+    ],
+    [
+      "rough-cut-capacity-planning",
+      "capacity-requirements-planning",
+      "Rough-cut planning checks critical capacity at a higher level. Capacity requirements planning calculates more detailed time-phased load using orders and routings; neither automatically resolves overloads."
+    ],
+    [
+      "optimism-bias",
+      "planning-fallacy",
+      "Optimism bias covers systematically favourable expectations. The planning fallacy specifically concerns underestimated work or time when the inside plan displaces relevant experience."
+    ]
+  ];
+  var metricInsights = {
+    "traffic-intensity": {
+      formula: "For a basic identical-server queue: \u03C1 = \u03BB \xF7 (c \xD7 \u03BC)",
+      assumptions: "\u03BB is arrivals per unit time, \u03BC is services per server per the same time unit, and c is the number of servers. Basic stable infinite-waiting models require \u03BB < c\u03BC; variability still creates waiting.",
+      example: "Illustrative: 8 arrivals/hour and one server able to handle 10/hour give \u03C1 = 0.8, or 80% average offered load."
+    },
+    "single-server-queue": {
+      formula: "For a stable M/M/1 model: mean queue wait Wq = \u03BB \xF7 [\u03BC \xD7 (\u03BC \u2212 \u03BB)]",
+      assumptions: "This formula assumes Poisson arrivals, independent exponential service times, one server, first-come-first-served service, unlimited waiting space and \u03BB < \u03BC. It is not valid for every single-server process.",
+      example: "Illustrative: \u03BB = 8/hour and \u03BC = 10/hour give mean queue wait 0.4 hours, or 24 minutes, under the stated M/M/1 assumptions."
+    },
+    "arrival-rate": {
+      formula: "Observed average arrival rate = arrivals counted \xF7 observation time",
+      assumptions: "Use a positive observation period and a defined system boundary. A period average does not identify the arrival distribution, peak demand or time variation.",
+      example: "Illustrative: 24 arrivals in two hours give an observed average of 12 arrivals/hour."
+    },
+    "criticality-index": {
+      formula: "Criticality index (%) = iterations in which activity is critical \xF7 evaluated iterations \xD7 100",
+      assumptions: "Use a positive number of evaluated iterations and a consistent criticality definition. This is a model statistic, not a guarantee or a complete measure of delay consequence.",
+      example: "Illustrative: an activity is critical in 600 of 1,000 simulated iterations, giving a criticality index of 60%."
+    },
+    "buffer-penetration": {
+      formula: "One measure: buffer penetration (%) = time buffer consumed \xF7 original time buffer \xD7 100",
+      assumptions: "The original buffer must be positive and the management method must define consumption consistently. Values above 100% indicate use beyond the original allowance.",
+      example: "Illustrative: consuming three days of a six-day buffer gives 50% penetration; interpret it alongside progress on the protected work."
+    },
+    "weighted-scoring-model": {
+      formula: "One additive model: total score = \u03A3 (criterion weight \xD7 criterion score)",
+      assumptions: "Use compatible score scales and stated weights. If weights sum to one, the weighted result remains on the common score scale. Test sensitivity and avoid double-counting criteria.",
+      example: "Illustrative: value score 4 at weight 0.6 and deliverability score 3 at weight 0.4 produce a weighted score of 3.6 on the common scale."
+    },
+    "gross-margin-per-hectare": {
+      formula: "Gross margin/ha = (enterprise revenue \u2212 specified variable costs) \xF7 relevant hectares",
+      assumptions: "Use a positive area, a consistent crop period and currency, and explicit included costs. Fixed costs, finance and other excluded charges mean this is not necessarily net profit.",
+      example: "Illustrative: revenue 230,000 less specified variable costs 150,000 across two hectares gives gross margin 40,000 per hectare."
+    },
+    "deployment-frequency": {
+      formula: "One period measure: deployment frequency = production deployments \xF7 observation time",
+      assumptions: "Define the service, environment, deployment event and time unit. Compare like contexts and interpret frequency alongside stability, value and other delivery measures.",
+      example: "Illustrative: ten qualifying production deployments over five elapsed days give an average of two deployments/day."
+    },
+    "change-fail-rate": {
+      formula: "Change fail rate (%) = deployments requiring immediate intervention \xF7 total deployments \xD7 100",
+      assumptions: "Use a positive denominator, the same service and observation period, and a consistent intervention definition. This measure does not capture every kind of service failure.",
+      example: "Illustrative: three of 20 deployments require immediate intervention, giving a change fail rate of 15%."
+    },
+    "deployment-rework-rate": {
+      formula: "Deployment rework rate (%) = qualifying unplanned incident-related deployments \xF7 total deployments \xD7 100",
+      assumptions: "Use a positive denominator, consistent event classification and the same service and period. Identify unplanned deployments arising from production incidents rather than classifying all maintenance as rework.",
+      example: "Illustrative: two of 20 deployments are qualifying unplanned incident-related rework, giving a rate of 10%."
+    },
+    "tax-gross-up": {
+      formula: "For one flat deduction on the gross amount: gross payment = required net payment \xF7 (1 \u2212 deduction rate)",
+      assumptions: "This simplified calculation assumes a single applicable rate from zero up to but not including one, and a contractual requirement to preserve the net payment. Actual tax rules, treaties, deductibility and multiple taxes may change the analysis.",
+      example: "Illustrative only: net 100 with a hypothetical single 10% deduction gives gross 111.11 before rounding reconciliation. This is not a country-specific tax rate or advice."
+    }
+  };
+
+  // shared/knowledge/expansion.ts
+  var expansionSources = {
+    dora: {
+      name: "DORA \u2014 software delivery performance metrics",
+      url: "https://dora.dev/guides/dora-metrics/"
+    },
+    nistai: {
+      name: "NIST \u2014 AI Risk Management Framework",
+      url: "https://www.nist.gov/itl/ai-risk-management-framework"
+    },
+    who: {
+      name: "WHO \u2014 quality of care",
+      url: "https://www.who.int/health-topics/quality-of-care"
+    },
+    fao: {
+      name: "FAO \u2014 agriculture and food systems resources",
+      url: "https://www.fao.org/"
+    },
+    sphere: {
+      name: "Sphere \u2014 humanitarian handbook",
+      url: "https://spherestandards.org/handbook-2018/"
+    },
+    worldbank: {
+      name: "World Bank \u2014 procurement framework",
+      url: "https://www.worldbank.org/en/projects-operations/products-and-services/brief/procurement-new-framework"
+    },
+    afcfta: {
+      name: "African Union \u2014 African Continental Free Trade Area",
+      url: "https://au.int/en/african-continental-free-trade-area"
+    },
+    iccdisputes: {
+      name: "ICC \u2014 dispute resolution",
+      url: "https://iccwbo.org/dispute-resolution/"
+    },
+    icc: {
+      name: "ICC \u2014 Incoterms rules",
+      url: "https://iccwbo.org/business-solutions/incoterms-rules/"
+    },
+    oecdgov: {
+      name: "OECD \u2014 public procurement",
+      url: "https://www.oecd.org/en/topics/public-procurement.html"
+    },
+    worldbanksocial: {
+      name: "World Bank \u2014 environmental and social framework",
+      url: "https://www.worldbank.org/en/projects-operations/environmental-and-social-framework"
+    }
+  };
+  var expansionTopics = [
+    {
+      id: "advanced-planning",
+      name: "Advanced planning & schedule risk",
+      description: "Resource constraints, probabilistic schedules and buffer-based control.",
+      sources: ["pmi", "apm"],
+      entries: `
+Resource-constrained project scheduling|Constructing a feasible activity schedule that respects both dependency logic and limited resource availability; the shortest logic-only schedule may be infeasible.|RCPSP|Two tasks need the same crane, so their logically parallel work must be resequenced.|Check availability, calendars and alternative sequences before committing dates.|A dependency network alone does not prove resource feasibility.
+Resource-critical path|A sequence of work whose timing is constrained by resource availability as well as logical relationships; interpretation depends on the scheduling method.||A shared specialist links otherwise independent activities and delays final integration.|Document which resource assumptions determine the completion forecast.|Do not assume it is identical to the logic-only critical path.
+Resource breakdown structure|A hierarchy of resource categories used to organise planning, estimating and control of people, equipment, materials or other resources.|RBS|An engineering project groups resources by discipline, role and equipment class.|Use consistent resource categories when estimating and checking capacity.|Distinguish this RBS from a risk breakdown structure with the same acronym.
+Resource histogram|A time-based display of planned or actual resource demand, often used to reveal peaks, shortages and uneven utilisation.||A weekly labour histogram shows a peak of 18 electricians against 12 available.|Compare demand with realistic capacity and examine feasible smoothing or levelling.|A smooth graph does not establish that its underlying estimates are accurate.
+Time\u2013cost trade-off|An assessment of the cost and other consequences of changing activity durations or delivery timing within feasible constraints.||An extra shift reduces a constraining activity by two days but increases supervision costs.|Compare marginal acceleration cost with the value of the actual completion improvement.|Shortening non-constraining work may not improve the finish date.
+Schedule risk analysis|Assessing how uncertainty and risk events affect schedule outcomes using an explicit model and assumptions; simulation is one available approach.|SRA|A model varies supplier lead times and linked installation durations to estimate completion dates.|Check network quality, uncertainty ranges, dependencies and correlations before interpreting results.|A simulation cannot repair a logically invalid schedule.
+Schedule confidence level|A model-based probability associated with meeting a particular schedule date, conditional on the model, data and risk assumptions.||A P80 date means 80% of the modelled outcomes finish by that date.|State the assumptions, model date and risks included with any confidence claim.|A modelled P80 date is not an unconditional 80% guarantee.
+Schedule sensitivity|The degree to which changes or uncertainty in selected inputs affect schedule outcomes, assessed using a stated analytical method.||Simulation suggests procurement uncertainty has more influence on finish dates than painting duration.|Use sensitivity results to target evidence gathering and risk responses.|High input uncertainty and high outcome sensitivity are different concepts.
+Criticality index|In schedule simulation, the proportion of modelled iterations in which an activity is classified as critical under the selected method.||An activity is on the critical path in 600 of 1,000 simulated iterations.|Consider both criticality and the magnitude of potential delay when prioritising attention.|A frequently critical activity is not automatically the largest delay risk.
+Schedule contingency analysis|Estimating an appropriate time allowance for selected uncertainty and deciding how that allowance will be governed and monitored.||A team separates risk allowance from the working schedule and defines release authority.|Link allowance to identified uncertainty and communicate the target confidence basis.|An arbitrary time percentage is not a quantified confidence estimate.
+Merge bias|The tendency for convergence points to create later outcomes when several uncertain predecessor paths must all finish before work can proceed.||Three uncertain permits must all arrive before mobilisation, so the latest one governs readiness.|Model all material converging paths and their dependencies.|Adding only the expected durations on one path can understate completion risk.
+Path convergence|A schedule-network condition where multiple predecessor paths meet at an activity or milestone that depends on their completion.||Design approval, land access and equipment delivery converge before installation.|Identify near-critical paths and the conditions at their shared handoff.|The longest current path may not remain the limiting path.
+Probabilistic scheduling|Representing schedule inputs or outcomes as uncertain quantities to explore possible completion results rather than relying solely on single-point dates.||A team reports a completion range from an explicitly modelled duration distribution.|Explain distributions, correlation assumptions and important risks excluded from the model.|A range without a defensible model is not automatically a probability forecast.
+Reference class forecasting|Using outcomes from an appropriate group of comparable past initiatives to inform estimates or challenge an internal forecast.||A road programme compares actual approval times from similar completed schemes.|Choose comparators transparently and explain differences in scope and context.|A convenient but incomparable historical sample can mislead.
+Optimism bias|A systematic tendency to expect more favourable outcomes than the available evidence justifies, such as lower costs or shorter durations.||Repeated plans assume permits arrive faster than the organisation's recorded experience.|Compare forecasts with actual outcomes and challenge unsupported favourable assumptions.|Optimism bias is not the same as deliberately misrepresenting an estimate.
+Planning fallacy|Underestimating the time or resources needed by focusing on a specific intended plan while giving insufficient weight to relevant experience.||A team repeats an ideal three-week rollout despite past rollouts taking six weeks.|Use external comparisons and discuss plausible disruptions before approving commitments.|Detailed task lists do not eliminate biased assumptions.
+Dependency structure matrix|A matrix representation of dependencies between activities, components or decisions, useful for detecting feedback loops and coordination needs.|DSM|A design team identifies a cycle of approvals between architecture, electrical and structural work.|Use the matrix to clarify interfaces, iteration and sequencing choices.|Not every dependency is a simple one-way finish-to-start relationship.
+Schedule health check|A structured review of schedule-model quality, such as logic completeness, calendars, constraints, actuals and unreasonable durations or lags.||A review finds missing predecessors and obsolete imposed finish dates before forecasting.|Agree checks appropriate to the scheduling tool and decision being supported.|Passing a checklist does not prove a schedule is achievable.
+Out-of-sequence progress|Actual work occurring in an order that differs from the schedule's recorded dependency logic.||Installation begins before its modelled design predecessor is complete.|Investigate whether the logic, progress record or delivery approach needs correction.|Do not silently change logic just to hide a variance.
+Retained logic|A scheduling treatment that keeps relevant predecessor logic governing remaining work after out-of-sequence progress; exact behaviour depends on the tool.||Started installation pauses in the model until its unfinished predecessor permits remaining work.|Document how the chosen scheduling option treats remaining dependencies.|Software options can materially alter forecasts without changing actual work.
+Progress override|A scheduling treatment that allows remaining work to be scheduled despite certain unfinished predecessor relationships after progress has occurred; tool behaviour varies.||A scheduler tests how an override option changes the installation forecast.|Use only when the resulting sequence reflects a feasible delivery decision.|An earlier software-generated date is not evidence that dependencies disappeared.
+Resource buffer|In critical-chain practice, a readiness signal or protection arrangement intended to ensure an important resource is available when required.||A specialist receives an advance readiness alert before critical-chain work starts.|Define the signal, resource owner and preparation action.|A resource buffer is not necessarily extra task duration.
+Feeding buffer|A time allowance placed where a non-critical chain feeds a protected chain, intended to absorb selected upstream variability.||A buffer protects integration from variation on a supporting procurement chain.|Specify sizing assumptions and monitor consumption with the overall delivery model.|Buffer size should not be copied blindly from a fixed percentage rule.
+Project buffer|In critical-chain scheduling, a shared time allowance protecting an important project completion commitment from selected variation in the chain.||A team separates the working chain completion from the protected delivery commitment.|Track chain progress and buffer consumption using agreed governance.|A shared buffer is not permission to stop controlling individual work.
+Buffer penetration|The extent to which a defined schedule buffer has been consumed, interpreted alongside progress and the buffer-management method.||Half the project buffer is used while only a quarter of the protected work is complete.|Investigate consumption relative to work accomplished and emerging risks.|Consumption alone does not identify the cause or predict the finish with certainty.
+`
+    },
+    {
+      id: "commercial-advanced",
+      name: "Commercial, construction contracts & disputes",
+      description: "Payment, claims, completion, change and dispute processes under applicable contracts.",
+      sources: ["pmi", "cips", "worldbank", "icc"],
+      entries: `
+Construction claim|A request for a contractual entitlement or remedy arising from an event affecting construction delivery, supported by the applicable terms and evidence.||A contractor submits records supporting additional time after a qualifying access delay.|Check entitlement, notices, causation, records and the requested remedy against the actual contract.|An asserted claim is not an established entitlement.
+Extension of time|An authorised adjustment to a contractual completion date under the applicable terms, following assessment of a qualifying event and its effects.|EOT|An assessed qualifying delay changes the contractual completion date by ten days.|Maintain event records and assess actual effects on the relevant completion obligation.|Extra time does not automatically establish a right to extra payment.
+Notice of claim|A communication made in the form, timeframe and manner required to preserve or initiate a claim process under the relevant contract.||A site team sends a notice through the contractually designated channel after an event.|Identify required recipients, content and deadlines from the signed terms.|An ordinary progress email may not satisfy a contractual notice requirement.
+Condition precedent|A condition that must be satisfied before a particular contractual right or obligation arises, subject to the terms and governing law.||A contract makes a specified notice a precondition to a particular remedy.|Obtain appropriate contract review when a precondition may affect entitlement.|Not every procedural requirement has the same legal effect.
+Variation valuation|Determining the price or cost consequence of an instructed or agreed change using the valuation rules in the applicable contract.||A changed foundation is valued using relevant rates and agreed evidence of different conditions.|Separate authority to instruct the change from the process for valuing it.|An approved scope change does not by itself settle its valuation.
+Interim payment certificate|A contractual record certifying an amount for interim payment under specified assessment and authorisation arrangements.||An authorised certifier assesses completed work for a monthly payment cycle.|Reconcile measured work, supporting evidence, deductions and payment conditions.|Certification, invoice approval and actual payment are different events.
+Final account|An agreed or determined financial reconciliation of a contract, including applicable changes, adjustments, deductions and outstanding matters.||A closeout review reconciles the original price, variations and previously certified amounts.|Maintain a clear audit trail and distinguish agreed figures from unresolved amounts.|A final account does not automatically resolve every legal or operational obligation.
+Provisional sum|An allowance in a contract for specified work or cost that is not fully defined when the agreement is made, governed by its particular terms.||An allowance is included for utility diversions whose exact scope is still uncertain.|Clarify instruction, valuation and adjustment arrangements before relying on the allowance.|An allowance is not necessarily a freely spendable fixed budget.
+Prime cost sum|An allowance commonly associated with the cost of specified supply or work, whose scope, markups and adjustment rules depend on the contract.||A contract includes a supply allowance for sanitary fittings pending final selection.|Identify what is included and how installation, overheads and adjustments are treated.|Definitions vary; do not assume all contracts use the term identically.
+Dayworks|A valuation basis using recorded labour, materials and plant under agreed rates and verification rules, often for work that cannot readily be priced otherwise.||An authorised small repair is recorded daily using signed resource sheets.|Confirm instruction authority and contemporaneous records before the work proceeds.|Signed records of resources do not necessarily settle contractual entitlement.
+Defects liability period|A contractually defined period with particular obligations for identifying and addressing defects after a specified completion event.||A contract requires notified defects to be addressed during its stated post-completion period.|Check the start event, notification process and continuing obligations in the actual terms.|It is not a universal warranty duration or a complete limit on liability.
+Taking-over certificate|A certificate under certain contracts recording a specified taking-over decision and triggering defined consequences for the works or a section.||A section is taken over after the agreed tests and contractual conditions are met.|Check how the certificate affects risk, responsibilities and other contractual milestones.|Its effects depend on the contract; it is not interchangeable with every completion certificate.
+Practical completion|A completion status used in certain contracts or jurisdictions, assessed under the applicable requirements and authorised decision process.||An authorised assessment considers whether remaining minor work prevents the relevant completion status.|Use the governing definition and document any outstanding items and their treatment.|There is no universal cross-contract test for practical completion.
+Advance payment guarantee|A security instrument intended to protect specified advance payments, with scope, demand conditions and reduction rules set by its wording.||A supplier provides agreed security before receiving a mobilisation advance.|Verify the instrument, issuer, expiry and conditions with appropriate commercial review.|A guarantee's label does not establish its enforceability or scope.
+Price adjustment clause|A contractual mechanism for changing prices in response to specified factors under agreed rules and evidence.||A contract permits defined input-price changes to be assessed using a stated mechanism.|Check eligible costs, base date, evidence and limits before forecasting recovery.|General inflation does not automatically create a right to a price increase.
+Contract price indexation|Adjusting defined contract prices using specified indices, weights, base periods and calculation rules.||A formula applies agreed labour and materials indices to eligible work.|Use the named indices and consistent reference periods, then check contractual exclusions.|A general consumer index may be inappropriate for a specialised cost basket.
+Concurrent delay|A situation involving overlapping delay causes, whose contractual significance and assessment depend on the facts, terms and governing law.||Employer and contractor events overlap while affecting the completion forecast.|Analyse causation, timing and the applicable allocation rules rather than using a blanket assumption.|Concurrent events do not necessarily have identical effects or remedies.
+Disruption|A loss of productive efficiency caused by interference or changed working conditions, distinguishable from completion delay although both may occur.||Repeated workfront changes reduce crew productivity without moving the final completion date.|Record the affected work, productivity evidence and causal explanation.|Completion delay and productivity loss require different evidence.
+Acceleration agreement|An agreement to alter resources, methods or sequencing to achieve specified earlier delivery, with defined commercial and risk consequences.||The parties agree an extra shift and revised milestone after assessing feasibility and cost.|Record the target, resources, compensation, assumptions and authorisation.|An instruction to work faster does not establish a safe or feasible acceleration plan.
+Loss and expense|A term used in some contracts for defined additional costs or financial effects arising from qualifying events, subject to the applicable wording.||A party seeks defined additional site costs supported by event and expenditure records.|Check the entitlement basis, causal link and calculation method under the actual contract.|Not every financial loss is recoverable under every contract.
+Dispute avoidance|Practices that reduce the likelihood or escalation of disagreements through clarity, early discussion, evidence and agreed decision mechanisms.||A joint review resolves measurement differences before they become a payment dispute.|Use early notice, shared records and appropriate escalation routes.|Avoiding a dispute does not mean suppressing legitimate concerns.
+Adjudication|A dispute-decision process available under particular laws or agreements, with procedures and the effect of decisions determined by the applicable framework.||Parties refer a payment dispute to an agreed or legally available adjudicator.|Check jurisdiction, appointment, timetables and the decision's legal effect.|Do not assume all countries provide the same adjudication rights.
+Arbitration|A dispute-resolution process in which an appointed tribunal makes an award under an applicable agreement and procedural and legal framework.||A contract provides for arbitration of specified unresolved disputes.|Check the arbitration agreement, seat, rules and appropriate professional advice.|Arbitration, court litigation and mediation have different authority and procedures.
+Mediation|A facilitated process in which a neutral helps parties seek an agreed resolution rather than imposing an adjudicated outcome.||Parties explore a negotiated settlement with an independent mediator.|Agree participants, authority, process and any confidentiality terms.|A mediator's proposal is not automatically a binding award.
+Without prejudice communication|A label or status associated in some legal systems with certain settlement communications; protection depends on the substance and applicable law.||Parties obtain advice before exchanging a settlement proposal under a claimed protected status.|Check the governing legal rules before relying on confidentiality or admissibility assumptions.|Adding the words alone does not guarantee legal protection.
+`
+    },
+    {
+      id: "programme-portfolio",
+      name: "Programme, portfolio & investment",
+      description: "Investment choices, coordinated change, dependencies and benefits over time.",
+      sources: ["pmi", "apm"],
+      entries: `
+Portfolio balancing|Adjusting the mix of investments across agreed dimensions such as strategic goals, risk, timing, asset type or resource demand.||A portfolio reduces concentration in projects competing for the same scarce engineering capacity.|Assess the combined mix rather than only individual project rankings.|The highest-ranked individual projects may not form the best overall portfolio.
+Portfolio component|An investment, programme, project or other element managed within a portfolio under defined selection and oversight arrangements.||An operational improvement initiative is governed alongside major capital projects.|Define inclusion criteria and comparable oversight information.|A component need not be a standalone project.
+Portfolio roadmap|A time-oriented view of portfolio intentions, major outcomes and investment transitions, at a level suitable for strategic decisions.||A roadmap shows when capabilities become available and which investment decisions precede them.|Use it to discuss sequencing, dependencies and changes in direction.|A strategic roadmap is not a detailed commitment for every delivery task.
+Portfolio dependency map|A representation of important relationships between investments or components, including shared capabilities, decisions, resources and benefits.||Several initiatives depend on a common data-platform release.|Assign owners to cross-component dependencies and review their consequences.|Separate project schedules can hide systemic dependencies.
+Investment appraisal|A structured assessment of options, costs, benefits, risks and constraints to inform whether and how resources should be committed.||A board compares refurbishing a facility with replacing it or doing the minimum.|State evaluation criteria, evidence and uncertainty before choosing an option.|Financial return alone may omit important service or social objectives.
+Investment gate|A defined decision point at which evidence is assessed to authorise, modify, defer or stop further investment.||A pilot's results determine whether a regional rollout receives funding.|Define evidence requirements and decision authority before the review.|A gate should not become an automatic approval ritual.
+Strategic bucket|A defined allocation category used to reserve or organise portfolio resources for particular strategic purposes.||A portfolio sets indicative funding envelopes for resilience and growth investments.|Review allocation rules alongside the quality and feasibility of actual candidates.|Rigid buckets can preserve low-value spending if never challenged.
+Weighted scoring model|A decision-support method combining scores against criteria using explicit weights and scales.||A committee scores proposals on service value, risk and deliverability using agreed definitions.|Test sensitivity to weights and check for double-counted criteria.|A precise total does not remove subjective judgement or poor evidence.
+Pairwise comparison|Comparing alternatives or criteria two at a time to elicit preferences or relative importance under a stated method.||Decision makers compare strategic objectives before setting evaluation weights.|Explain the comparison scale and check inconsistency in judgements.|Pairwise preferences do not by themselves establish affordability or feasibility.
+Capacity-based prioritisation|Choosing and sequencing work with explicit regard to scarce skills, funding, equipment or other delivery capacity.||Only two of five valuable initiatives can start because all need the same specialists.|Assess resource demand across time as well as overall investment value.|Declaring everything a priority does not create capacity.
+Benefits dependency network|A model showing how changes, enabling capabilities and intermediate results are expected to connect to benefits and strategic objectives.||A service benefit depends on both new software and revised operating procedures.|Identify benefit-critical dependencies and test the causal assumptions.|Drawing arrows does not establish that the causal relationships are true.
+Programme blueprint|A description of a programme's intended future capability or operating state, with scope and structure determined by its governing method.||A programme describes the future service, roles, information and enabling technology.|Use the blueprint to coordinate component outcomes and transition choices.|It is not merely a collection of project schedules.
+Programme tranche|A planned grouping of programme work or change used to organise delivery, transition and review of benefits or capabilities.||An initial tranche establishes enabling capability before a wider service transition.|Define the tranche's outcomes, dependencies and review evidence.|A tranche is not necessarily the same as a project or financial year.
+Transition state|An explicitly described intermediate operating condition between the current and intended future state.||During migration, some sites use the new process while others retain legacy support.|Plan ownership, controls and service continuity for each intermediate state.|The organisation does not move instantly from the current state to the target.
+Target operating model|A description of how an organisation intends to operate in the future across relevant processes, roles, information, technology and governance.|TOM|A service redesign specifies future case handling, decision rights and support arrangements.|Connect capability delivery with organisational changes needed to operate it.|Technology architecture alone is not a complete operating model.
+Programme integration|Coordinating components, interfaces and change so they collectively produce intended programme outcomes.||Programme management aligns training, infrastructure and policy changes before transition.|Resolve cross-project trade-offs using programme objectives and authority.|Completing every component independently may still fail to produce the outcome.
+Programme assurance|Independent or suitably separated review of a programme's controls, evidence and prospects against defined assurance questions.||An assurance review checks whether benefits dependencies and transition risks are being managed.|Set a risk-based assurance scope and follow up material findings.|Assurance offers informed confidence, not a guarantee of success.
+Portfolio governance board|A group with defined authority for portfolio-level decisions such as selection, funding, balancing and performance intervention.||A board defers a project when changed capacity makes the current mix infeasible.|Specify decision rights, membership, evidence and escalation arrangements.|Attendance at a board does not imply authority to approve every decision.
+Benefits profile|A structured description of a specific benefit, including its measure, baseline, target, owner, timing and dependencies.||A profile defines reduced processing time and the data source used to test it.|Keep benefit definitions and evidence consistent through delivery and operation.|An aspiration without a measure or owner is not an actionable benefits profile.
+Disbenefit|An expected adverse consequence of a change, considered alongside its positive benefits rather than hidden in a net total.||A centralised service reduces cost but increases travel time for some users.|Identify affected groups, quantify where credible and assess mitigation or alternatives.|A disbenefit can occur even when overall financial return is positive.
+Benefits dependency|A condition, action or result necessary for a specified benefit to be realised.||Reduced downtime depends on both installed equipment and trained maintenance staff.|Assign ownership and monitor the dependencies supporting important benefits.|Delivered outputs alone may not satisfy the dependency.
+Benefits sustainment|The continuing operational work needed to preserve benefits after their initial achievement.||A digital service's early gains depend on continuing staff training and data maintenance.|Assign funding, ownership and measures beyond project closure.|A one-off measurement does not establish lasting benefit.
+Strategic drift|A growing mismatch between an organisation's actions or investments and changes in its strategic environment or intended direction.||A portfolio continues funding capabilities that no longer meet user demand.|Revisit strategic assumptions and redirect investment when evidence changes.|Historical approval is not sufficient justification for continuing every investment.
+Portfolio optimisation|Selecting or adjusting an investment mix under stated objectives and constraints; analytical results depend on the assumptions and model.||A model compares feasible combinations under funding and specialist-capacity limits.|Test sensitivity, interdependencies and unmodelled considerations before a decision.|A numerical optimum is conditional, not an objective answer to every value judgement.
+Termination criteria|Predefined or explicitly assessed conditions supporting a decision to stop an initiative or investment.||A pilot is stopped when evidence invalidates its essential demand assumption.|Agree criteria and decision rights while recognising obligations from stopping.|Sunk expenditure alone is not a reason to continue.
+`
+    },
+    {
+      id: "leadership-change",
+      name: "Leadership, learning & organisational change",
+      description: "Coaching, culture, adoption and the organisational conditions for lasting change.",
+      sources: ["pmi", "apm", "ilo"],
+      entries: `
+Coaching|A developmental approach using questioning, reflection and feedback to help someone improve judgement, performance or learning in a defined context.||A manager helps a team member work through options instead of immediately prescribing an answer.|Agree the purpose, boundaries and follow-up of the coaching conversation.|Coaching does not remove the manager's accountability or replace necessary instruction.
+Mentoring|A developmental relationship in which a more experienced person shares perspective and support relevant to another person's growth.||An experienced commercial manager helps a junior colleague understand career and decision challenges.|Clarify expectations, confidentiality and the limits of the mentor's advice.|Mentoring is not automatically a formal supervision or approval role.
+Servant leadership|A leadership orientation that supports others' capability and effective work while maintaining responsibility for purpose and outcomes.||A lead removes recurring access barriers and helps the team develop decision skills.|Listen for obstacles and enable appropriate autonomy and accountability.|Serving the team does not mean accepting every request or avoiding difficult decisions.
+Situational leadership|Adapting leadership behaviour to the task, context and the needs and capability of the people involved; particular models use different categories.||A new operator needs close instruction while an experienced specialist needs broader autonomy.|Assess the actual work and support needs rather than applying a fixed personal style.|Experience in one task does not establish readiness for every task.
+Transformational leadership|Leadership that helps people understand and pursue meaningful change through purpose, development and a shared direction.||A service leader links a redesign to user outcomes and supports teams through the transition.|Connect the vision to credible actions, resources and feedback.|An inspiring message alone does not deliver organisational change.
+Cultural intelligence|The ability to recognise and adapt constructively to different cultural contexts without relying on simplistic stereotypes.|CQ|A multinational team checks how members interpret disagreement and decision confirmation.|Ask, observe and agree working practices rather than assuming shared norms.|Nationality alone does not determine an individual's preferences or behaviour.
+Emotional intelligence|Capabilities for recognising and managing one's own emotions and responding constructively to others' emotional cues.||A project lead pauses a tense discussion and explores the concerns behind opposing positions.|Use reflection and feedback to improve difficult conversations.|It is not a licence to diagnose or manipulate colleagues.
+Active listening|Listening with deliberate attention, clarification and reflection to understand another person's meaning and concerns.||A facilitator summarises a stakeholder's concern and asks whether it was understood correctly.|Check assumptions before proposing a solution or recording agreement.|Repeating words without understanding their context is insufficient.
+Interest-based negotiation|Negotiating by exploring underlying needs and constraints and generating options rather than defending positions alone.||Two teams discover that a shared specialist can meet both needs through different sequencing.|Clarify interests, decision authority and realistic alternatives before making commitments.|A collaborative approach does not eliminate conflicting interests or power differences.
+Stakeholder salience|An assessment of which stakeholders require attention under a stated model, often considering power, legitimacy and urgency.||A safety concern from a low-power affected group requires urgent attention.|Use the model as one input and consider vulnerability and actual impact.|A ranking tool should not justify ignoring affected people.
+Distributed leadership|Leadership activity shared across people or roles while preserving clear responsibilities and coordination.||Technical leads guide decisions in their domains within agreed governance boundaries.|Make decision rights, escalation and integration responsibilities explicit.|Shared leadership is not the absence of accountability.
+Team charter|An agreed description of a team's purpose, boundaries, responsibilities and ways of working.||A cross-functional team records its mission, decision rights and escalation route.|Review the charter when membership, objectives or constraints materially change.|A signed document does not replace ongoing collaboration.
+Working agreement|A shared understanding of practical behaviours and collaboration rules, reviewed as a team learns.||A distributed team agrees response expectations and how to record decisions.|Choose observable agreements and discuss whether they improve the work.|Working agreements cannot override applicable employment or organisational requirements.
+Decision latency|The elapsed time between a decision becoming ready or needed and an authorised decision being made, under a stated measurement boundary.||A purchase waits eight days after all required evidence reaches the approver.|Measure handoffs and clarify delegation or evidence requirements causing delays.|Not every delay is solved by adding another meeting.
+Change adoption|The extent to which intended users or groups begin using and sustaining a new behaviour, process or capability.||Staff complete training, but observed use of the new case workflow remains low.|Measure actual behaviour and investigate barriers beyond awareness and training.|Training attendance alone does not establish adoption.
+Change saturation|A condition where the volume or overlap of changes strains the organisation's capacity to absorb and sustain them.||Several rollouts compete for the same supervisors' attention and training time.|Map combined change demand and consider sequencing or additional support.|Individually justified changes can still create an infeasible combined load.
+Change fatigue|Reduced energy, trust or willingness to engage with change following repeated, poorly supported or prolonged demands.||Teams disengage after several abandoned improvement campaigns.|Listen for causes and improve credibility, pacing and practical support.|Do not dismiss legitimate concerns as a negative attitude.
+Change impact assessment|Analysing how a proposed change affects roles, processes, systems, behaviours, stakeholders and operating conditions.||A new procurement process changes approval authority and supplier onboarding work.|Use the assessment to plan engagement, training, support and transition controls.|A technical impact list alone misses organisational consequences.
+Organisational design|Arranging roles, structures, decision rights and working relationships to support an organisation's purpose and operating needs.||A service redesign changes where decisions are made and how specialist support is shared.|Evaluate the effects on capability, coordination, workload and accountability.|Redrawing an organisation chart alone does not establish an effective design.
+Organisational ambidexterity|The ability to support reliable current operations while also exploring and developing new approaches.||A provider protects essential service delivery while testing a different service model.|Create appropriate boundaries, resources and coordination between exploitation and exploration.|Innovation and stable operation may need different controls and cadences.
+Community of practice|A group that develops shared knowledge and capability through sustained interaction around a field of practice.|CoP|Project controls practitioners compare forecasting approaches and lessons from actual work.|Support useful exchanges, ownership and access to validated learning.|A mailing list with no active practice is not sufficient.
+Double-loop learning|Learning that questions the assumptions, goals or governing rules behind actions, rather than adjusting actions within the same rules alone.||A team questions an approval policy after repeated efforts to speed up its steps fail.|Ask whether the governing assumption still serves the intended outcome.|Challenging a rule does not authorise bypassing it without a decision.
+Knowledge retention|Preserving access to important experience and information so it remains usable when people leave or work changes.||A retiring engineer documents failure history and coaches a successor using real cases.|Combine accessible records, context and opportunities to practise or transfer judgement.|Storing documents alone does not preserve tacit knowledge.
+Learning transfer|The application of learning in the actual work environment, supported by opportunity, feedback and relevant conditions.||A planner applies a course's risk-analysis method to a reviewed real schedule.|Agree an application task and follow up its use and results.|Completing a course or quiz does not establish workplace competence.
+Change reinforcement|Actions that help new behaviours and practices persist through feedback, support, incentives and aligned operating arrangements.||Managers remove an obsolete process that otherwise encourages staff to revert.|Check whether routines, measures and leadership behaviour support the intended change.|Repeated reminders cannot compensate for a process that remains impractical.
+`
+    },
+    {
+      id: "digital-delivery",
+      name: "Product discovery, DevOps & responsible AI",
+      description: "Experimentation, software delivery performance and trustworthy use of AI.",
+      sources: ["pmi", "dora", "nistai", "sre"],
+      entries: `
+Product discovery|Learning about user problems, opportunities and possible solutions before or alongside delivery, using evidence to reduce important uncertainty.||A team observes users before deciding whether a proposed dashboard addresses their actual bottleneck.|Identify the riskiest assumptions and choose a proportionate way to test them.|Discovery is not merely collecting feature requests.
+Continuous discovery|A continuing approach to learning about customer needs and solution assumptions as product decisions evolve.||A product team regularly reviews user evidence while delivering small increments.|Establish feedback opportunities and record how evidence changes decisions.|Frequent interviews without useful learning do not establish effective discovery.
+Product hypothesis|A testable proposition about how a proposed change is expected to affect user behaviour or an outcome.||A team predicts that simplifying a form will reduce abandonment for the defined user group.|Specify the change, population, expected effect and evidence that would challenge the claim.|A preferred solution is not automatically a tested hypothesis.
+Opportunity solution tree|A visual model connecting an outcome to identified opportunities, possible solutions and experiments used to test assumptions.||A team maps several ways to reduce failed bookings rather than committing to one feature.|Use the tree to expose alternatives and the evidence supporting them.|A diagram does not validate its opportunities or assumptions.
+Outcome-based roadmap|A roadmap organised around desired changes in user or business results rather than only feature-release promises.||A roadmap prioritises improved payment completion before selecting all detailed features.|Connect roadmap outcomes to measures, learning and investment decisions.|An outcome label without a credible measure can remain vague.
+Experiment design|Planning a test so it can provide interpretable evidence about a question, including the intervention, measures, comparison and important limitations.||A service tests a revised reminder with a defined group and measures attendance consistently.|Consider sample selection, ethics, confounding factors and decision rules before testing.|A favourable result does not automatically establish generalisable causation.
+A/B testing|Comparing two variants using an explicitly designed allocation and measurement approach, often with random assignment where appropriate.||Comparable users receive different form versions while completion rates are measured.|Define the primary measure, allocation, analysis and stopping rules in advance.|Repeatedly checking for a favourable result can distort statistical conclusions.
+Feature flag|A control that enables or disables specified software behaviour independently of deploying the underlying code.||A team enables a new checkout for a small approved group and can turn it off quickly.|Manage ownership, access, test coverage and eventual removal of temporary flags.|A flag does not replace security, data migration or release governance.
+DevOps|An approach to collaboration and technical practices connecting software development and operations to improve reliable value delivery.||Development and operations jointly own deployment feedback and service reliability.|Address handoffs, automation, observability and shared responsibility together.|Buying a tool or renaming a team does not establish DevOps.
+Continuous integration|Frequently integrating code changes with automated checks to identify integration problems early.|CI|Developers merge small changes and run a shared automated build and test process.|Keep checks useful, feedback timely and the main codebase in a workable state.|Passing automated checks does not prove all user requirements are met.
+Continuous delivery|Practices that keep software changes in a reliably releasable state, while release to production can remain an explicit decision.||A tested build is ready for production but waits for the authorised release choice.|Make readiness, evidence and release authority explicit.|Continuous delivery does not necessarily mean every change is automatically deployed.
+Continuous deployment|A delivery approach where changes meeting the defined automated checks proceed to production without a separate manual release decision.||A low-risk service automatically deploys changes that pass its agreed delivery pipeline.|Use suitable automated controls, monitoring and recovery arrangements.|It is a specific release approach, not a requirement for every DevOps team.
+Infrastructure as code|Defining and managing infrastructure through versioned machine-readable configuration and controlled execution rather than only manual setup.|IaC|A team reviews infrastructure changes through version control and a repeatable deployment process.|Protect credentials, review proposed changes and manage state and drift.|Versioned configuration can still contain destructive or incorrect settings.
+Deployment frequency|A measure of how often software changes are deployed, with the environment and counting rules explicitly defined.||A service records production deployment events over a comparable observation period.|Interpret frequency alongside reliability, value and the nature of the service.|More deployments alone do not establish better business outcomes.
+Change lead time|Elapsed time for a software change to progress from the defined code-change starting point to successful production deployment.||A team measures time from code commit to deployment using consistent event records.|Keep boundaries and aggregation consistent when investigating delivery delays.|Do not equate it with total product-discovery or customer-request lead time.
+Change fail rate|The proportion of deployments that cause a failure requiring immediate intervention, under an explicit measurement definition.||A team classifies deployments that need rollback or an urgent corrective action.|Use reliable deployment and failure records and investigate patterns rather than blame.|Changing the failure definition can make comparisons misleading.
+Failed deployment recovery time|Elapsed time to recover from a production deployment failure requiring immediate intervention, using specified start and recovery events.||A team measures restoration after a faulty release independently of unrelated incidents.|Define recovery evidence and examine the distribution as well as a summary statistic.|This deployment-specific measure is not identical to every use of MTTR.
+Deployment rework rate|A measure of deployments undertaken to address problems arising from production changes, using the selected delivery-performance definition.||A service identifies unplanned follow-up deployments needed to correct release problems.|State classification rules and use the measure with other delivery indicators.|Do not classify all planned maintenance as deployment rework.
+Digital twin|A digital representation of a physical asset or system maintained with relevant data to support defined monitoring, analysis or decision purposes.||A plant model uses equipment data to test maintenance and operating scenarios.|Specify the decision purpose, model fidelity, data updates and validation needs.|A static drawing is not automatically a useful operational digital twin.
+AI governance|The allocation of policies, roles, controls and oversight for the responsible selection, development and use of AI systems.||An organisation assigns approval, monitoring and incident responsibilities for an AI planning assistant.|Define permitted use, data controls, evaluation and human decision authority.|A policy document alone does not establish effective oversight.
+Model hallucination|A generated claim or output that appears plausible but is unsupported, inaccurate or fabricated in the relevant context.||An assistant invents a supplier quotation and gives it a convincing reference.|Verify consequential claims against actual evidence before use.|Confidence of expression is not a measure of factual reliability.
+Retrieval-augmented generation|An approach that provides retrieved material to a generative model to inform its response; quality depends on retrieval, sources and generation.|RAG|An assistant retrieves approved procedures before drafting an answer about a workflow.|Check source permissions, freshness, retrieval relevance and whether the answer is supported.|Retrieved documents do not guarantee that the generated answer is correct.
+Prompt injection|An attempt to cause an AI system to follow untrusted instructions embedded in input or retrieved material rather than its intended operating instructions.||A retrieved document contains instructions to reveal data unrelated to the user's authorised task.|Treat external content as data, enforce access boundaries and review consequential actions.|Natural-language warnings alone do not establish a secure control boundary.
+Human-in-the-loop review|A designed process in which an identified person reviews, influences or authorises specified system outputs or decisions.||A qualified reviewer checks an AI-generated risk assessment before it informs approval.|Define what the reviewer checks, what evidence is available and when they can intervene.|A nominal sign-off without time, competence or evidence is weak oversight.
+Model drift|A change in a model's operating conditions or performance over time, often associated with changes in input data or relationships.||An estimator trained on historical purchasing patterns becomes less accurate after a market shift.|Monitor relevant performance and investigate changed data, assumptions and use conditions.|A decline in performance should not be attributed to drift without investigation.
+`
+    },
+    {
+      id: "advanced-operations",
+      name: "Queueing, production planning & simulation",
+      description: "Queue models, production constraints, planning horizons and operational simulation.",
+      sources: ["ascm", "lean", "asq"],
+      entries: `
+Queueing model|A representation of arrivals, service and waiting used to analyse system behaviour under explicit assumptions about capacity, variability and customer behaviour.||A service models arrivals and staffing to explore waiting-time trade-offs.|Check assumptions against observed demand and service patterns before using results.|An elegant model can be misleading when its boundary or assumptions are wrong.
+Arrival rate|The average number of arrivals to a defined system per unit of time over a specified observation basis.||A clinic records an average of 12 arrivals per hour during a defined session.|Measure relevant time patterns and distinguish arrivals from completed service.|A daily average can conceal severe peak congestion.
+Service rate|The average completion capacity per server or service resource per unit of time under stated conditions.||One counter can handle an average of 15 comparable transactions per hour.|Use consistent transaction definitions and account for practical availability.|An average service rate does not imply every transaction has identical duration.
+Traffic intensity|A model-specific ratio of workload to service capacity; in a simple multi-server queue it is arrival rate divided by combined service rate.||For one server, 8 arrivals/hour and 10 services/hour give intensity 0.8.|Check the system model, number of servers and stability assumptions before interpretation.|Average capacity exceeding demand does not eliminate waiting caused by variability.
+Single-server queue|A waiting system served by one service resource, with behaviour depending on its arrival, service and priority assumptions.||A specialist approval desk handles one case at a time.|Assess how variability and outages affect queues before increasing utilisation targets.|A single-server model is not valid simply because one department owns the service.
+Multi-server queue|A waiting system with multiple service resources, whose pooling, routing and customer-selection rules must be specified.||Several counters share a common waiting line for comparable requests.|Model which staff can handle which work and how queues are assigned.|Separate specialised queues can behave differently from a pooled queue.
+Erlang C model|A queueing model often used for staffing analysis with Poisson arrivals, exponential service times, identical parallel servers and no abandonment under stable conditions.||A contact centre compares staffing options after checking whether waiting and abandonment assumptions are reasonable.|Validate assumptions and consider alternative models when abandonment or demand patterns matter.|It is not a universal staffing formula for every service.
+Service discipline|The rule determining which waiting item or customer is served next.||A clinic uses clinically appropriate priority rules rather than arrival order alone.|Make service rules explicit and assess fairness, urgency and operational consequences.|First-come-first-served is not appropriate for every risk or service context.
+Balking|A customer or item not joining a queue after observing or anticipating the wait or other service conditions.||A customer leaves before joining an unusually long service line.|Consider unserved demand when assessing apparent throughput and access.|Counts of people served omit those deterred from entering.
+Reneging|A customer or item leaving a queue after joining it but before receiving the intended service.||Callers abandon a waiting line before speaking to an adviser.|Measure abandonment and investigate waiting, information and service alternatives.|Completed-service records alone cannot describe all customer experience.
+Blocking|A condition where an item or upstream resource cannot proceed because the next stage lacks available capacity or space.||A packing line stops because its dispatch buffer is full.|Investigate downstream constraints and buffer policies across the whole process.|Speeding up the blocked upstream stage may worsen congestion.
+Setup reduction|Reducing the time or effort needed to prepare resources for a different task, product or batch.||A team moves preparation work outside a machine's stopped period.|Separate internal and external setup activities and test changes safely.|Faster setup should not compromise safety or required quality checks.
+Transfer batch|The quantity moved from one process step to the next at a time, which can differ from the quantity processed in one production run.||A production run of 100 units moves onward in transfer batches of 10.|Assess movement, waiting and handling trade-offs separately from setup economics.|The production-batch size need not equal the transfer-batch size.
+Process batch|The quantity processed together before a changeover or other defined production boundary.||A machine produces 100 identical parts before changing its setup.|Choose batch size with demand, setup, quality and flow constraints in view.|Large batches can improve local utilisation while increasing system lead time.
+Drum-buffer-rope|A constraint-based production-control approach that coordinates release of work with the system constraint and protective buffers.|DBR|A plant releases work at a rate coordinated with its bottleneck rather than filling every workstation.|Identify the current constraint and define practical release and buffer rules.|An outdated constraint assumption can misdirect the control system.
+Throughput accounting|A decision-support approach associated with the theory of constraints that emphasises throughput, inventory or investment, and operating expense under defined rules.||A plant compares product mix using contribution to constrained system throughput.|State which costs are treated as totally variable and check the decision horizon.|It is not a substitute for all statutory financial-accounting requirements.
+Demand time fence|A planning boundary within which a demand or order policy gives defined weight to actual customer orders rather than forecasts, depending on the system.||Near-term production uses confirmed orders under the organisation's stated fence policy.|Document what changes at the boundary and how exceptions are handled.|ERP systems may use the term differently; inspect the configured rules.
+Planning time fence|A planning boundary within which schedule changes are constrained or require additional review to protect feasible near-term execution.||A production planner reviews changes inside a two-week frozen or controlled horizon.|Set the fence from actual lead times and stability needs and define exception authority.|A planning fence is not permission to ignore urgent safety or service issues.
+Rough-cut capacity planning|A higher-level check that proposed production or master-schedule plans are plausible against critical resource capacity.|RCCP|A plant checks bottleneck-machine hours before accepting a master schedule.|Use suitable resource profiles and investigate overloads before detailed release.|A rough-cut check does not prove detailed order-level feasibility.
+Capacity requirements planning|Calculating time-phased resource requirements from planned or released work using relevant routings, load assumptions and calendars.|CRP|A planner calculates work-centre load from material-planning orders and routing times.|Check data quality and distinguish calculated load from a feasible capacity-constrained schedule.|An overload report does not automatically resolve its conflicts.
+Manufacturing resource planning|An integrated planning approach linking production, materials, capacity and related business information; commonly distinguished from material requirements planning.|MRP II|A manufacturer connects production planning with capacity and financial implications.|Keep demand, product, routing and resource data aligned across planning decisions.|It is broader than calculating material quantities alone.
+Available-to-promise|The portion of planned supply that can be committed to customer demand under an explicit order-promising policy.|ATP|A sales team checks uncommitted inventory and scheduled receipts before promising an order.|Define eligible supply, existing commitments and update rules.|Available stock in a system may already be committed or otherwise unusable.
+Capable-to-promise|Assessing whether a new customer commitment can be met using relevant material, resource and production capabilities under stated rules.|CTP|A supplier checks feasible capacity and material availability before accepting a custom order date.|Use realistic lead times, resource constraints and decision authority.|A capacity check cannot compensate for inaccurate material or routing data.
+Discrete-event simulation|Modelling a system as a sequence of events that change its state, allowing analysis of queues, resources and operating policies under assumptions.|DES|A hospital tests patient-routing options using a validated event model.|Validate logic and inputs, replicate runs and explain uncertainty and exclusions.|One simulation run is not a reliable estimate of every expected outcome.
+Simulation warm-up period|An initial portion of a simulation run excluded or handled separately to reduce bias from an unrepresentative starting state, where relevant.||A steady-state queue model starts empty, so early waiting times are not representative.|Justify initial conditions, run length and warm-up treatment for the study purpose.|Not every finite-horizon or terminating simulation should discard an initial period.
+`
+    },
+    {
+      id: "sector-delivery",
+      name: "Construction, agriculture, health & public delivery",
+      description: "Sector-specific concepts for physical assets, farming, health, humanitarian and public services.",
+      sources: ["worldbank", "who", "fao", "sphere", "oecdgov"],
+      entries: `
+Building information modelling|Managing structured information about a built asset through collaborative processes and digital representations across relevant lifecycle stages.|BIM|Design teams coordinate asset information and detect interface conflicts before construction.|Define information requirements, responsibilities, exchange rules and intended uses.|A three-dimensional model alone does not establish effective BIM practice.
+Constructability review|Assessing a design or plan for practical construction feasibility, sequencing, access, safety and resource implications.||A review checks whether planned equipment can reach and install a large component.|Involve people with relevant site and execution knowledge early enough to change the design.|A buildable design still needs other technical, safety and compliance checks.
+Method statement|A documented explanation of how specified work will be carried out, with relevant sequence, resources, controls and responsibilities.||A contractor describes lifting sequence, competent roles and required work controls.|Align the statement with actual conditions and the applicable risk and approval processes.|A generic statement copied from another site may be unsuitable.
+Inspection and test plan|A plan defining relevant inspections, tests, acceptance criteria, records and review or hold points for specified work.|ITP|Concrete work has agreed material checks, inspection stages and evidence requirements.|Name who verifies results and when work must pause for an authorised decision.|Recording a test does not establish that its result meets the acceptance criterion.
+Commissioning|A planned process of verifying and demonstrating that systems or assets function for their intended operating purpose under specified conditions.||A water system is tested with operational staff before service handover.|Plan integrated tests, records, operator involvement and treatment of outstanding issues.|Individual component tests do not necessarily prove integrated service readiness.
+Crop calendar|A time-oriented plan of crop activities linked to season, crop development, local conditions and resource needs.||Planting and harvest arrangements are coordinated with a locally appropriate seasonal window.|Use local agronomic evidence and update for actual conditions and constraints.|A calendar from another region may be inappropriate.
+Gross margin per hectare|Revenue less the specified variable costs for a crop enterprise, divided by the relevant area under a stated model and period.||A farm compares scenarios using crop revenue and defined variable costs per hectare.|State yields, prices, included costs and area measurement assumptions.|Gross margin is not necessarily net profit or available cash.
+Post-harvest loss|A reduction in quantity or quality of agricultural produce after harvest within a specified chain boundary.||Poor storage increases rejected grain and reduces marketable output.|Define the product, quality basis and measurement boundary before comparing losses.|Physical weight loss and financial value loss are different measures.
+Integrated pest management|An approach combining appropriate prevention, monitoring and control methods based on context and evidence to manage pests and reduce unnecessary harm.|IPM|An extension service uses monitoring and locally appropriate thresholds to inform management choices.|Use qualified local agronomic guidance and applicable controls for the crop and setting.|It is not a universal instruction to use or avoid a particular treatment.
+Agricultural extension|Services and learning processes that help producers access and apply relevant knowledge, skills and innovations.||An extension programme combines demonstrations with follow-up on farmers' actual application.|Assess relevance, access, adoption and outcomes rather than attendance alone.|Information delivery does not guarantee effective or equitable adoption.
+Clinical pathway|An agreed, evidence-informed framework for coordinating care for a defined patient group, adapted to clinical needs and local arrangements.||A hospital coordinates assessments and handoffs for an identified care pathway.|Use qualified clinical governance and examine pathway performance and exceptions.|A management reference does not replace individual clinical judgement.
+Patient flow|The movement of patients through care processes and locations, including waiting, handoffs and discharge or transfer.||A hospital investigates delays between readiness for discharge and actual departure.|Assess capacity, safety, demand variation and coordination across the whole pathway.|Increasing activity in one department may simply move the queue elsewhere.
+Clinical governance|Arrangements for accountability, quality improvement and assurance of care within a health organisation.||A provider connects incident learning, professional oversight and quality review.|Clarify roles, evidence, escalation and involvement of patients and competent professionals.|General project governance alone does not cover all clinical responsibilities.
+Health technology assessment|A structured evaluation of relevant clinical, economic, organisational, ethical and other effects of a health technology to inform decisions.|HTA|A health service assesses evidence and service implications before investing in diagnostic equipment.|Use appropriate specialist evidence and make the decision perspective and limitations explicit.|Purchase price alone is not a health technology assessment.
+Infection prevention and control|Evidence-based measures and organisational arrangements intended to reduce infection risks in relevant care and service settings.|IPC|A facility upgrade includes appropriate expert input on workflows, training and environmental controls.|Follow qualified guidance and applicable local requirements for the setting.|A checklist cannot replace competent clinical and environmental assessment.
+Humanitarian needs assessment|Systematically gathering and analysing information about affected people's needs, capacities and priorities to inform an appropriate response.||Responders triangulate community input and service data before allocating assistance.|Assess access constraints, uncertainty, inclusion and the potential harms of data collection.|Available data may underrepresent people who are hardest to reach.
+Accountability to affected populations|Commitments and practices enabling crisis-affected people to influence, understand and provide feedback on decisions and assistance affecting them.|AAP|A response team makes accessible feedback channels and explains how concerns change its actions.|Support participation, information and safe feedback appropriate to the context.|Collecting complaints without response or learning is insufficient.
+Cash and voucher assistance|Humanitarian assistance provided through cash transfers or vouchers under a defined programme design and delivery arrangement.|CVA|A programme assesses markets and protection risks before choosing a transfer modality.|Check feasibility, inclusion, security, controls and the ability of recipients to use assistance.|Cash is not automatically the best modality in every setting.
+Do no harm|A principle of identifying and reducing unintended adverse effects of an intervention, including effects on conflict, exclusion or vulnerability.||A programme reviews whether targeting decisions could intensify local tensions.|Explore likely consequences with affected groups and adapt the design and monitoring.|Good intentions alone do not establish that an intervention is harmless.
+Sphere minimum standards|Humanitarian standards and supporting guidance published through the Sphere Handbook, intended to inform quality and accountability in context.||A response team uses the handbook alongside local analysis to assess service gaps.|Consult the actual handbook, contextualise responsibly and record gaps and decisions.|A summary definition does not establish compliance with the standards.
+Public investment management|The arrangements for appraising, selecting, budgeting, implementing and reviewing public investments through their lifecycle.||A government links project selection to affordability, readiness and future maintenance needs.|Examine the whole investment system, including operational funding and review.|Project approval alone does not establish implementation or long-term affordability.
+Procurement integrity|The ethical and control arrangements that support fair, transparent and accountable procurement decisions.||A panel records conflicts of interest and applies disclosed evaluation criteria consistently.|Use appropriate disclosure, separation of duties, records and challenge mechanisms.|A competitive label does not by itself establish a fair process.
+Public expenditure tracking|Following the flow and use of public resources across defined administrative levels or service points to examine allocation and delivery.||A review reconciles approved grants, transfers and funds received by service facilities.|Define scope, records, reconciliation rules and treatment of missing evidence.|A difference in records needs investigation before being labelled misuse.
+Citizen oversight|Participation by citizens or civil-society groups in observing, questioning or reviewing public decisions and service performance through defined arrangements.||A community group reviews published project milestones and raises evidenced delivery concerns.|Provide accessible information, safe participation and an actual response route.|Participation does not automatically confer formal approval authority.
+Service delivery standard|A defined expectation for a public or organisational service, such as access, timeliness or quality, with an explicit measurement basis.||A service publishes its response target and how users can raise unmet expectations.|State who is covered, how results are measured and who acts on exceptions.|A published standard without capacity, ownership or evidence may be ineffective.
+`
+    },
+    {
+      id: "african-delivery",
+      name: "African delivery, trade & community context",
+      description: "Cross-border operations, country-specific obligations and practical delivery resilience.",
+      sources: ["afcfta", "icc", "worldbank", "worldbanksocial", "ilo"],
+      entries: `
+Cross-border trade facilitation|Measures and operating arrangements that simplify and coordinate the movement, release and clearance of goods across borders.||A logistics plan aligns documentation and clearance activities across a regional shipment route.|Map each border's actual requirements, responsibilities and expected processing constraints.|Regional agreements do not remove every national procedure.
+Rules of origin|Criteria used to determine a product's origin for a particular trade purpose or agreement.||An exporter checks whether a product meets the applicable origin rule before claiming a preference.|Verify the specific product rule, evidence and agreement in force.|Shipping a product from a country does not necessarily establish its originating status.
+Preferential tariff treatment|A reduced or otherwise preferential tariff applied to eligible goods under a defined trade arrangement and its conditions.||An importer checks origin evidence and the relevant tariff schedule before forecasting duty.|Confirm eligibility, implementation, documentation and the applicable current schedule.|A trade agreement does not make every shipment duty-free.
+Non-tariff barrier|A non-tariff measure or practice that creates a trade obstacle in a defined context; identification and remedies depend on the relevant framework.|NTB|An unexpected documentation practice delays market access and is assessed through the available route.|Distinguish legitimate requirements, implementation problems and potentially challengeable barriers.|Not every regulatory requirement is necessarily an unlawful barrier.
+Trade corridor|A route or network of transport and related infrastructure and services supporting trade between production, market or border locations.||A shipment plan compares road, port and border constraints along a regional corridor.|Assess the whole route, seasonal variation and handoff responsibilities.|The shortest mapped route may not have the lowest delivered cost or risk.
+Customs single window|An arrangement allowing specified trade or transport information to be submitted through a single entry point for participating authorities.||A trader submits eligible documents through a national digital window.|Confirm which agencies, procedures and transactions the arrangement actually covers.|A single window does not necessarily eliminate all inspections or separate approvals.
+Transit bond|A security arrangement covering specified obligations for goods moving under a customs transit procedure, subject to applicable rules.||A transporter verifies required security before routing goods through an intermediate country.|Check coverage, validity, discharge conditions and responsible parties with competent support.|Different routes and transit systems can impose different requirements.
+Regional economic community|A regional grouping of states pursuing specified economic integration and cooperation objectives under its governing arrangements.|REC|A business checks which regional arrangements affect a planned cross-border operation.|Verify the relevant membership, instrument and actual implementation for the transaction.|Overlapping regional memberships do not make all rules interchangeable.
+AfCFTA trade in goods|The arrangements for trade in goods under the African Continental Free Trade Area, implemented through relevant instruments, schedules and conditions.||A firm checks applicable tariff concessions and origin conditions before entering a market.|Use official current schedules and competent country-specific trade support.|AfCFTA participation does not imply immediate free circulation of every good.
+Supplier localisation|Developing or shifting supply capability closer to the relevant operating market or country, under a defined sourcing strategy.||A maintenance programme develops a local repair supplier to reduce import lead-time exposure.|Assess capability, quality, economics and resilience rather than location alone.|A local address does not establish local capability or compliant origin.
+Local-content compliance plan|A plan for meeting applicable local participation, sourcing, employment or reporting obligations under the relevant country, sector and contract rules.||A project documents required supplier and workforce evidence against the obligations that actually apply.|Identify current requirements, responsible owners and auditable evidence before committing claims.|There is no single local-content percentage applying to every African project.
+Land tenure due diligence|Investigating relevant rights, uses, claims, restrictions and decision processes affecting land before relying on access or development assumptions.||A site review considers documented ownership, customary interests and current users.|Use competent country-specific review and engage affected rights holders appropriately.|A single title document may not resolve every access or rights issue.
+Customary land rights|Land-related rights or interests arising under customary systems, whose recognition and interaction with other rights depend on applicable law and context.||A project checks how community land use and recognised customary interests affect a proposed site.|Seek competent local assessment and meaningful engagement before making access commitments.|Do not assume customary rights are either absent or identical across countries.
+Resettlement action plan|A plan addressing displacement-related impacts and assistance under the applicable legal and financing requirements, with scope determined by those requirements.|RAP|An infrastructure project plans measures for people affected by involuntary land acquisition.|Establish the applicable framework, affected population, consultation and implementation evidence.|The term does not imply a universal legal procedure or compensation rule.
+Free prior and informed consent|A consent-related standard or process applicable in particular rights, policy and legal contexts, whose scope must be established for the affected people and activity.|FPIC|A project checks whether the relevant framework requires a specific consent process before an intervention.|Identify the applicable requirements and obtain competent guidance on a legitimate process.|General consultation is not automatically equivalent to consent.
+Community development agreement|An agreement defining relevant commitments and arrangements between a project or operator and a community, subject to its wording and governing context.||A mining-related programme records agreed development commitments and monitoring arrangements.|Clarify representation, authority, funding, implementation and grievance routes.|An agreement does not replace all statutory or other stakeholder obligations.
+Benefit-sharing arrangement|A defined mechanism for distributing specified benefits among affected or participating parties, with explicit eligibility and governance.||An energy programme documents who receives agreed local benefits and how allocations are reviewed.|Specify entitlements, evidence, representation and mechanisms for resolving concerns.|Promised benefits without feasible funding and delivery arrangements can undermine trust.
+Stakeholder grievance escalation|An agreed route for moving unresolved stakeholder concerns to an appropriate further review or decision level.||A site complaint unresolved locally reaches a designated independent or senior review route.|Make the route accessible and protect legitimate use of available remedies.|Escalation should not be used to silence concerns or remove applicable rights.
+Seasonal accessibility|Changes in practical access to sites, markets or services due to seasonal conditions and their effects on transport and operations.||A rural route becomes unreliable during heavy rains, affecting supplies and supervision.|Use local evidence and contingency arrangements when setting delivery windows.|An annual average travel time may conceal major seasonal constraints.
+Rainy-season mobilisation|Planning and organising the start or movement of work with explicit consideration of rain-related access, safety, drainage and productivity conditions.||A contractor checks site access and storage protection before mobilising equipment during the wet season.|Base decisions on local conditions, competent planning and available alternatives.|There is no single rainy-season calendar for all African locations.
+Power-supply resilience|The ability of an operation to maintain or recover required service despite electricity-supply disruption, using appropriate design and operating arrangements.||A cold-storage operator assesses backup power, fuel, maintenance and alarm arrangements.|Define critical loads, safe operating needs, testing and recovery responsibilities.|Owning a generator alone does not establish a reliable power contingency.
+Connectivity contingency|Arrangements to continue or safely recover essential work when network or communications connectivity is unavailable.||Field staff use an approved offline capture process with controlled later reconciliation.|Plan data integrity, access, synchronisation and escalation as well as alternate connectivity.|Offline records can conflict or expose data if reconciliation and protection are undefined.
+Mobile money reconciliation|Comparing mobile-money transaction records with authorised obligations and accounting or beneficiary records to explain differences and confirm relevant transfers.||A programme reconciles disbursement instructions, provider records and unresolved exceptions.|Define identifiers, fees, failed transfers, privacy and authorisation controls.|A payment instruction is not proof that the intended recipient received funds.
+Foreign-currency mismatch|An exposure arising when relevant receipts, obligations or assets are denominated in different currencies without sufficient offset or protection.||A project receives local-currency income but has a fixed foreign-currency equipment obligation.|Map currency, timing and contractual adjustment exposure before selecting a response.|A stable supplier price can still create a changing local-currency cash requirement.
+Tax gross-up|A contractual or calculation arrangement increasing a payment so a specified net amount remains after relevant deductions, subject to applicable tax and contract rules.||Parties seek country-specific advice on whether a contract's net-payment clause changes the gross amount due.|Check the applicable tax, treaty, payer obligations and actual wording before calculating.|Withholding does not automatically mean every payment must be grossed up.
+`
+    }
+  ];
+
   // shared/knowledge/catalog.ts
   var knowledgeSources = {
+    ...expansionSources,
     apm: {
       name: "Association for Project Management \u2014 glossary",
       url: "https://www.apm.org.uk/resources/glossary/"
@@ -2066,6 +3027,12 @@ Document control|Managing document identity, ownership, version, approval, acces
 `
     }
   ];
+  knowledgeTopics.push(
+    ...expansionTopics.map((topic) => ({
+      ...topic,
+      sources: [...topic.sources]
+    }))
+  );
   var additionalEntries = {
     foundations: "Predictive delivery|An approach that plans substantial scope and delivery detail in advance and manages execution against agreed baselines, with controlled changes.|Waterfall approach\nAdaptive delivery|An approach that adjusts detailed plans through frequent feedback and learning when requirements or solutions are uncertain.\nHybrid delivery|An intentional combination of predictive and adaptive practices chosen to suit the work rather than applying one approach uniformly.\nProjectification|Organising a growing proportion of an organisation's work through temporary projects, with implications for governance, capability and resource allocation.\nBenefits realisation|The process of planning, enabling, measuring and sustaining expected benefits, often extending beyond project closure.|Benefits realization",
     governance: "Portfolio prioritisation|Comparing candidate and ongoing investments against agreed strategic, value, risk and resource criteria to decide their relative priority.\nProject authorisation|A formal decision allowing a project or stage to proceed within defined objectives, authority and resource limits.|Project authorization\nTolerances|Defined limits of acceptable deviation within which delegated managers can act without further escalation.\nGate review|An evidence-based assessment supporting a decision about whether a stage or initiative should proceed and under what conditions.",
@@ -2095,12 +3062,13 @@ Document control|Managing document identity, ownership, version, approval, acces
   var knowledgeSlug = (text) => text.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   var knowledgeTerms = knowledgeTopics.flatMap(
     (topic) => topic.entries.trim().split("\n").filter(Boolean).map((line) => {
-      const [name, definition, aliases = ""] = line.split("|");
+      const [name, definition, aliases = "", example, practicalUse, pitfall] = line.split("|");
       return {
         id: knowledgeSlug(name),
         name,
         category: topic.id,
         definition,
+        ...example ? { example, practicalUse, pitfall, reviewed: "2026-11-02" } : {},
         aliases: aliases ? aliases.split(";") : [],
         sources: [...topic.sources],
         related: []
@@ -2388,12 +3356,87 @@ Document control|Managing document identity, ownership, version, approval, acces
       related: ["sponsor", "project-management-plan", "business-case"]
     }
   };
+  var expansionGroupSizes = {
+    "advanced-planning": [5, 8, 8, 4],
+    "commercial-advanced": [4, 6, 3, 3, 4, 5],
+    "programme-portfolio": [10, 7, 5, 3],
+    "leadership-change": [7, 6, 6, 6],
+    "digital-delivery": [8, 5, 5, 1, 6],
+    "advanced-operations": [11, 5, 7, 2],
+    "sector-delivery": [5, 5, 5, 5, 5],
+    "african-delivery": [9, 2, 7, 2, 3, 2]
+  };
+  var expansionRelated = /* @__PURE__ */ new Map();
+  for (const [category, sizes] of Object.entries(expansionGroupSizes)) {
+    const terms = knowledgeTerms.filter((t) => t.category === category);
+    let offset = 0;
+    for (const size of sizes) {
+      const group = terms.slice(offset, offset + size);
+      offset += size;
+      for (let i = 0; i < group.length; i++)
+        expansionRelated.set(
+          group[i].id,
+          group.filter((t) => t.id !== group[i].id).sort(
+            (a, b) => Math.abs(group.indexOf(a) - i) - Math.abs(group.indexOf(b) - i)
+          ).slice(0, 3).map((t) => t.id)
+        );
+    }
+  }
+  expansionRelated.set("digital-twin", [
+    "building-information-modelling",
+    "asset-life-cycle-management",
+    "predictive-maintenance"
+  ]);
   for (const term of knowledgeTerms) {
-    Object.assign(term, enhancements[term.id] || {});
+    Object.assign(
+      term,
+      enhancements[term.id] || {},
+      termInsights[term.id] || {},
+      metricInsights[term.id] || {}
+    );
+    if (term.category === "commercial-advanced") {
+      const index = knowledgeTerms.filter((t) => t.category === term.category).indexOf(term);
+      term.sources = index >= 20 ? ["iccdisputes", "cips"] : ["cips", "worldbank", "pmi"];
+    }
+    if (term.category === "sector-delivery") {
+      const index = knowledgeTerms.filter((t) => t.category === term.category).indexOf(term);
+      term.sources = [
+        ["worldbank", "pmi", "iso"],
+        ["fao", "ascm"],
+        ["who"],
+        ["sphere", "worldbanksocial"],
+        ["worldbank", "oecdgov"]
+      ][Math.floor(index / 5)];
+    }
+    if (term.category === "digital-delivery") {
+      const index = knowledgeTerms.filter((t) => t.category === term.category).indexOf(term);
+      term.sources = index < 8 ? ["scrum", "iiba", "pmi"] : index < 18 ? ["dora", "sre"] : index === 18 ? ["iso", "pmi"] : ["nistai"];
+    }
+    if (expansionRelated.has(term.id))
+      term.related = expansionRelated.get(term.id);
     if (!term.related.length)
       term.related = knowledgeTerms.filter((t) => t.category === term.category && t.id !== term.id).slice(0, 3).map((t) => t.id);
   }
+  for (const [left, right, distinction] of comparisonPairs) {
+    const a = knowledgeTerms.find((t) => t.id === left), b = knowledgeTerms.find((t) => t.id === right);
+    if (!a || !b) throw new Error(`Unknown comparison term: ${left} / ${right}`);
+    (a.comparisons ?? (a.comparisons = [])).push({ termId: right, distinction });
+    (b.comparisons ?? (b.comparisons = [])).push({ termId: left, distinction });
+    for (const [term, related] of [
+      [a, right],
+      [b, left]
+    ])
+      if (!term.related.includes(related)) term.related.unshift(related);
+  }
   var knowledgeEdition = "2026-11";
+  var knowledgeStats = {
+    terms: knowledgeTerms.length,
+    topics: knowledgeTopics.length,
+    practical: knowledgeTerms.filter(
+      (t) => t.practicalUse && t.example && t.pitfall
+    ).length,
+    comparisons: knowledgeTerms.reduce((n, t) => n + (t.comparisons?.length || 0), 0) / 2
+  };
 
   // shared/knowledge/search.ts
   var normaliseKnowledge = (value) => value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
@@ -2404,12 +3447,25 @@ Document control|Managing document identity, ownership, version, approval, acces
       if (filters.category && filters.category !== "All" && t.category !== filters.category)
         return false;
       if (filters.favouritesOnly && !saved.has(t.id)) return false;
+      if (filters.practicalOnly && !(t.example && t.practicalUse && t.pitfall))
+        return false;
+      if (filters.comparisonsOnly && !t.comparisons?.length) return false;
       const initial = /^[0-9]/.test(t.name) ? "#" : t.name.charAt(0).toUpperCase();
       if (filters.letter && filters.letter !== "All" && initial !== filters.letter)
         return false;
       const category = knowledgeTopics.find((c) => c.id === t.category)?.name || "";
       const text = normaliseKnowledge(
-        [t.name, ...t.aliases, t.definition, category, t.formula || ""].join(" ")
+        [
+          t.name,
+          ...t.aliases,
+          t.definition,
+          category,
+          t.formula || "",
+          t.example || "",
+          t.practicalUse || "",
+          t.pitfall || "",
+          ...(t.comparisons || []).map((c) => c.distinction)
+        ].join(" ")
       );
       return words.every((w) => text.includes(w));
     });
@@ -2435,7 +3491,13 @@ Document control|Managing document identity, ownership, version, approval, acces
         "Definition",
         "Formula",
         "Formula assumptions",
-        "Illustrative example"
+        "Illustrative example",
+        "Practical application",
+        "Common mistake",
+        "Concept comparisons",
+        "Related terms",
+        "Further reading",
+        "Summary review date"
       ],
       ...terms.map((t) => [
         t.name,
@@ -2444,7 +3506,17 @@ Document control|Managing document identity, ownership, version, approval, acces
         t.definition,
         t.formula || "",
         t.assumptions || "",
-        t.example || ""
+        t.example || "",
+        t.practicalUse || "",
+        t.pitfall || "",
+        (t.comparisons || []).map(
+          (c) => (knowledgeTerms.find((x) => x.id === c.termId)?.name || c.termId) + ": " + c.distinction
+        ).join("; "),
+        t.related.map((id) => knowledgeTerms.find((x) => x.id === id)?.name || id).join("; "),
+        t.sources.map(
+          (id) => knowledgeSources[id]?.url || ""
+        ).filter(Boolean).join("; "),
+        t.reviewed || ""
       ])
     ];
     return "\uFEFF" + rows.map((row) => row.map(cell).join(",")).join("\r\n");
@@ -2458,7 +3530,7 @@ Document control|Managing document identity, ownership, version, approval, acces
 let knowledgeOpen = false;
 let knowledgeSection = "learn";
 function knowledgeSectionNavigation() {
-  return `<nav class="knowledge-sections" aria-label="Knowledge Centre sections">${[
+  return `<p class="knowledge-depth-note">${PMKnowledge.knowledgeStats.practical} entries with examples, practical applications and common mistakes · ${PMKnowledge.knowledgeStats.comparisons} concept comparisons. Use the Glossary depth filters to find them.</p><nav class="knowledge-sections" aria-label="Knowledge Centre sections">${[
     ["learn", "Learn & refresh"],
     ["glossary", "Glossary"],
     ["tools", "Practice lab"],
@@ -2481,6 +3553,8 @@ let knowledgeFilters = {
     category: "All",
     letter: "All",
     favouritesOnly: false,
+    practicalOnly: false,
+    comparisonsOnly: false,
   },
   knowledgeLimit = 24,
   knowledgeSaved = [];
@@ -2506,8 +3580,11 @@ function renderKnowledge() {
   const results = knowledgeResults();
   if (knowledgeSection !== "glossary") {
     if (document.getElementById("offline-learning-root")) {
-      document.querySelector(".knowledge-sections").outerHTML =
-        knowledgeSectionNavigation();
+      const replacement = document.createElement("div");
+      replacement.innerHTML = knowledgeSectionNavigation();
+      document
+        .querySelector(".knowledge-sections")
+        .replaceWith(replacement.querySelector("nav"));
       PMLearning.showSection(knowledgeSection);
       return;
     }
@@ -2525,7 +3602,7 @@ function renderKnowledge() {
   }
   PMLearning.unmount();
   $("app").innerHTML =
-    `<button class="back" data-action="exit-knowledge">‹ Back to workspace</button><section class="knowledge-centre"><div class="page-heading"><div><div class="eyebrow">A LITTLE KNOWLEDGE. A CLEARER WAY FORWARD.</div><h1>Knowledge Centre</h1><p>Project and operations management, in plain language.</p></div>${button("knowledge-csv", "Export glossary CSV", results.length ? "" : "disabled")}</div><div class="knowledge-intro"><div><h2>Your management reference, always within reach.</h2><p><strong>${PMKnowledge.knowledgeTerms.length} definitions</strong> across <strong>${PMKnowledge.knowledgeTopics.length} topics</strong> — from project charters and critical paths to inventory, maintenance and service operations.</p><small>Original summaries of common practice. Terminology varies by context and framework. Formula assumptions are provided; metric definitions do not imply every metric is implemented in this app.</small></div></div>${knowledgeSectionNavigation()}<div class="panel knowledge-controls"><label class="knowledge-search"><input id="knowledge-search" aria-label="Search definitions" placeholder="Search a term, acronym or concept…" value="${escape(knowledgeFilters.query)}"></label><div class="knowledge-filter-row"><label>Topic<select id="knowledge-topic" aria-label="Knowledge topic"><option value="All">All topics (${PMKnowledge.knowledgeTerms.length})</option>${PMKnowledge.knowledgeTopics.map((t) => `<option value="${t.id}" ${knowledgeFilters.category === t.id ? "selected" : ""}>${escape(t.name)} (${PMKnowledge.knowledgeTerms.filter((k) => k.category === t.id).length})</option>`).join("")}</select></label><div class="knowledge-switch"><button data-action="knowledge-all" aria-pressed="${!knowledgeFilters.favouritesOnly}" class="${knowledgeFilters.favouritesOnly ? "" : "active"}">All terms</button><button data-action="knowledge-saved" aria-pressed="${knowledgeFilters.favouritesOnly}" class="${knowledgeFilters.favouritesOnly ? "active" : ""}">Saved (${knowledgeSaved.length})</button></div><button class="text-link" data-action="knowledge-clear">Clear filters</button></div><div class="knowledge-alphabet" role="group" aria-label="Filter terms by first letter">${["All", "#", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"].map((l) => `<button data-action="knowledge-letter" data-id="${l}" aria-label="${l === "All" ? "All first letters" : l === "#" ? "Terms starting with a number" : "Terms starting with " + l}" aria-pressed="${l === knowledgeFilters.letter}" class="${l === knowledgeFilters.letter ? "active" : ""}">${l}</button>`).join("")}</div></div><div class="knowledge-results-heading"><p role="status">${results.length} ${results.length === 1 ? "definition" : "definitions"} found</p><small>Saved terms stay in this browser. Edition ${PMKnowledge.knowledgeEdition}.</small></div>${
+    `<button class="back" data-action="exit-knowledge">‹ Back to workspace</button><section class="knowledge-centre"><div class="page-heading"><div><div class="eyebrow">A LITTLE KNOWLEDGE. A CLEARER WAY FORWARD.</div><h1>Knowledge Centre</h1><p>Project and operations management, in plain language.</p></div>${button("knowledge-csv", "Export glossary CSV", results.length ? "" : "disabled")}</div><div class="knowledge-intro"><div><h2>Your management reference, always within reach.</h2><p><strong>${PMKnowledge.knowledgeTerms.length} definitions</strong> across <strong>${PMKnowledge.knowledgeTopics.length} topics</strong> — from project charters and critical paths to inventory, maintenance and service operations.</p><small>Original summaries of common practice. Terminology varies by context and framework. Formula assumptions are provided; metric definitions do not imply every metric is implemented in this app.</small></div></div>${knowledgeSectionNavigation()}<div class="panel knowledge-controls"><label class="knowledge-search"><input id="knowledge-search" aria-label="Search definitions" placeholder="Search a term, acronym or concept…" value="${escape(knowledgeFilters.query)}"></label><div class="knowledge-filter-row"><label>Topic<select id="knowledge-topic" aria-label="Knowledge topic"><option value="All">All topics (${PMKnowledge.knowledgeTerms.length})</option>${PMKnowledge.knowledgeTopics.map((t) => `<option value="${t.id}" ${knowledgeFilters.category === t.id ? "selected" : ""}>${escape(t.name)} (${PMKnowledge.knowledgeTerms.filter((k) => k.category === t.id).length})</option>`).join("")}</select></label><div class="knowledge-switch"><button data-action="knowledge-all" aria-pressed="${!knowledgeFilters.favouritesOnly}" class="${knowledgeFilters.favouritesOnly ? "" : "active"}">All terms</button><button data-action="knowledge-saved" aria-pressed="${knowledgeFilters.favouritesOnly}" class="${knowledgeFilters.favouritesOnly ? "active" : ""}">Saved (${knowledgeSaved.length})</button></div><button class="text-link" data-action="knowledge-clear">Clear filters</button></div><div class="knowledge-depth-filters"><label><input id="knowledge-practical" type="checkbox" ${knowledgeFilters.practicalOnly ? "checked" : ""}>With examples &amp; applications</label><label><input id="knowledge-comparisons" type="checkbox" ${knowledgeFilters.comparisonsOnly ? "checked" : ""}>With comparisons</label></div><div class="knowledge-alphabet" role="group" aria-label="Filter terms by first letter">${["All", "#", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"].map((l) => `<button data-action="knowledge-letter" data-id="${l}" aria-label="${l === "All" ? "All first letters" : l === "#" ? "Terms starting with a number" : "Terms starting with " + l}" aria-pressed="${l === knowledgeFilters.letter}" class="${l === knowledgeFilters.letter ? "active" : ""}">${l}</button>`).join("")}</div></div><div class="knowledge-results-heading"><p role="status">${results.length} ${results.length === 1 ? "definition" : "definitions"} found</p><small>Saved terms stay in this browser. Edition ${PMKnowledge.knowledgeEdition}.</small></div>${
       results.length
         ? `<div class="knowledge-grid">${results
             .slice(0, knowledgeLimit)
@@ -2550,7 +3627,20 @@ function openKnowledgeTerm(id) {
   const t = PMKnowledge.knowledgeTerms.find((t) => t.id === id);
   if (!t) return;
   const modal = $("knowledge-dialog");
-  modal.innerHTML = `<div class="knowledge-dialog-header"><div><div class="eyebrow">${escape(knowledgeTopic(t.category))}</div><h2 id="knowledge-detail-title" tabindex="-1">${escape(t.name)}</h2></div><button class="icon-button" aria-label="Close definition" data-action="knowledge-close">×</button></div><div class="knowledge-dialog-content">${t.aliases.length ? `<p class="knowledge-detail-aliases"><strong>Also called / abbreviated:</strong> ${escape(t.aliases.join(" · "))}</p>` : ""}<p class="knowledge-definition">${escape(t.definition)}</p>${t.formula ? `<section class="knowledge-formula"><h3>Formula</h3><p>${escape(t.formula)}</p><h4>Conditions & interpretation</h4><p>${escape(t.assumptions || "")}</p></section>` : ""}${t.example ? `<section class="knowledge-example"><h3>Illustrative example</h3><p>${escape(t.example.replace(/^Illustrative: /, ""))}</p></section>` : ""}<div class="knowledge-related"><h3>Related terms</h3><div>${t.related
+  modal.innerHTML = `<div class="knowledge-dialog-header"><div><div class="eyebrow">${escape(knowledgeTopic(t.category))}</div><h2 id="knowledge-detail-title" tabindex="-1">${escape(t.name)}</h2></div><button class="icon-button" aria-label="Close definition" data-action="knowledge-close">×</button></div><div class="knowledge-dialog-content">${t.aliases.length ? `<p class="knowledge-detail-aliases"><strong>Also called / abbreviated:</strong> ${escape(t.aliases.join(" · "))}</p>` : ""}<p class="knowledge-definition">${escape(t.definition)}</p>${t.practicalUse ? `<section class="knowledge-application"><h3>Apply in practice</h3><p>${escape(t.practicalUse)}</p></section>` : ""}${t.pitfall ? `<section class="knowledge-pitfall"><h3>Common mistake</h3><p>${escape(t.pitfall)}</p></section>` : ""}${
+    t.comparisons?.length
+      ? `<section class="knowledge-comparisons"><h3>Compare related concepts</h3>${t.comparisons
+          .map((c) => {
+            const other = PMKnowledge.knowledgeTerms.find(
+              (x) => x.id === c.termId,
+            );
+            return other
+              ? `<article><button class="text-link" data-action="knowledge-detail" data-id="${other.id}">${escape(other.name)} →</button><p>${escape(c.distinction)}</p></article>`
+              : "";
+          })
+          .join("")}</section>`
+      : ""
+  }${t.formula ? `<section class="knowledge-formula"><h3>Formula</h3><p>${escape(t.formula)}</p><h4>Conditions & interpretation</h4><p>${escape(t.assumptions || "")}</p></section>` : ""}${t.example ? `<section class="knowledge-example"><h3>Illustrative example</h3><p>${escape(t.example.replace(/^Illustrative: /, ""))}</p></section>` : ""}<div class="knowledge-related"><h3>Related terms</h3><div>${t.related
     .map((id) => {
       const related = PMKnowledge.knowledgeTerms.find((x) => x.id === id);
       return related
@@ -2572,7 +3662,7 @@ function openKnowledgeTerm(id) {
     })
     .join(
       "",
-    )}<small>Original plain-language summary; the links are references for further study, not attributed quotations.</small></div><button class="button" data-action="knowledge-save" data-id="${t.id}" aria-pressed="${knowledgeSaved.includes(id)}">${knowledgeSaved.includes(id) ? "Remove from saved terms" : "Save this term"}</button></div>`;
+    )}${t.reviewed ? `<small>Summary reviewed ${escape(t.reviewed)}.</small>` : ""}<small>Original plain-language summary; the links are references for further study, not attributed quotations.</small></div><button class="button" data-action="knowledge-save" data-id="${t.id}" aria-pressed="${knowledgeSaved.includes(id)}">${knowledgeSaved.includes(id) ? "Remove from saved terms" : "Save this term"}</button></div>`;
   modal.dataset.term = id;
   if (!modal.open) modal.showModal();
   $("knowledge-detail-title").focus();
@@ -2628,6 +3718,8 @@ document.addEventListener("click", (event) => {
           category: "All",
           letter: "All",
           favouritesOnly: false,
+          practicalOnly: false,
+          comparisonsOnly: false,
         };
       knowledgeLimit = a === "knowledge-more" ? knowledgeLimit + 24 : 24;
       renderKnowledge();
@@ -2649,6 +3741,16 @@ document.addEventListener("change", (event) => {
   if (event.target.id !== "knowledge-topic") return;
   knowledgeFilters.category = event.target.value;
   knowledgeFilters.letter = "All";
+  knowledgeLimit = 24;
+  renderKnowledge();
+});
+
+document.addEventListener("change", (event) => {
+  const id = event.target.id;
+  if (id !== "knowledge-practical" && id !== "knowledge-comparisons") return;
+  knowledgeFilters[
+    id === "knowledge-practical" ? "practicalOnly" : "comparisonsOnly"
+  ] = event.target.checked;
   knowledgeLimit = 24;
   renderKnowledge();
 });

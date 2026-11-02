@@ -20,8 +20,8 @@ security or online synchronisation. Use the full server app for protected team
 workspaces. HTML and text exports are available; Chrome Print can save as PDF.
 
 KNOWLEDGE CENTRE
-Click Knowledge Centre in the header for 538 project and operations management
-definitions across 21 topics. Search terms or acronyms, filter by topic or A-Z,
+Click Knowledge Centre in the header for 738 project and operations management
+definitions across 29 topics. Search terms or acronyms, filter by topic or A-Z,
 open related terms, save bookmarks and export the filtered glossary as CSV.
 Selected terms include formulas, conditions and illustrative examples.
 The definitions work offline; external further-reading links need internet.
@@ -38,3 +38,12 @@ exercises. Current guidance contains dated official-source summaries; it is a
 curated snapshot, not a live feed. Click Glossary for the searchable definitions.
 Lessons and calculations work offline; external reading requires internet.
 Practice passes do not award certification, training hours or PDUs.
+
+DEEPER GLOSSARY GUIDES
+There are 250 entries with examples, practical uses and common mistakes, plus
+50 comparisons between related concepts. In Glossary, use With examples &
+applications or With comparisons to filter the list. Open a term for details
+and follow its comparison links to explore the difference. Filtered CSV exports
+include the new guidance, comparisons and further-reading links.
+The expansion covers advanced planning, contracts, portfolios, leadership,
+digital delivery, operational simulation, industry practice and African context.

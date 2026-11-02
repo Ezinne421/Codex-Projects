@@ -1,5 +1,6 @@
 export {
   knowledgeTerms,
+  knowledgeStats,
   knowledgeTopics,
   knowledgeSources,
   knowledgeEdition,

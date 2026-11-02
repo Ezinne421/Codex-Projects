@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { resolve } from "node:path";
+import { knowledgeTerms } from "../../shared/knowledge/catalog";
 for (const edition of ["hosted", "offline"])
   test(`${edition}: knowledge search, formulas, related terms, bookmarks, filters, CSV and mobile`, async ({
     page,
@@ -32,7 +33,7 @@ for (const edition of ["hosted", "offline"])
       page.getByRole("heading", { name: "Knowledge Centre", exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByText("538 definitions", { exact: true }),
+      page.getByText(`${knowledgeTerms.length} definitions`, { exact: true }),
     ).toBeVisible();
     const search = page.getByRole("textbox", { name: "Search definitions" });
     await search.fill("CPI");
@@ -106,5 +107,80 @@ for (const edition of ["hosted", "offline"])
       await dialog.evaluate((e) => e.getBoundingClientRect().width),
     ).toBeLessThan(390);
     await dialog.getByRole("button", { name: "Close definition" }).click();
+    await page
+      .getByRole("button", { name: "Clear filters", exact: true })
+      .first()
+      .click();
+    await page
+      .getByLabel("With examples & applications", { exact: true })
+      .check();
+    await expect(page.locator(".knowledge-results-heading")).toContainText(
+      "250 definitions found",
+    );
+    await page.getByLabel("With comparisons", { exact: true }).check();
+    await search.fill("Continuous delivery");
+    await page
+      .getByRole("button", { name: "Continuous delivery", exact: true })
+      .click();
+    await expect(
+      dialog.getByRole("heading", { name: "Apply in practice", exact: true }),
+    ).toBeVisible();
+    await expect(
+      dialog.getByRole("heading", { name: "Common mistake", exact: true }),
+    ).toBeVisible();
+    await expect(dialog.locator(".knowledge-comparisons")).toContainText(
+      "without a separate manual release decision",
+    );
+    await expect(
+      dialog.locator(".knowledge-detail-sources a").first(),
+    ).toHaveAttribute("href", /^https:\/\//);
+    await dialog
+      .locator(".knowledge-comparisons")
+      .getByRole("button", { name: /^Continuous deployment/ })
+      .click();
+    await expect(
+      dialog.getByRole("heading", {
+        name: "Continuous deployment",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await dialog
+      .getByRole("button", { name: "Close definition", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Clear filters", exact: true })
+      .first()
+      .click();
+    await expect(
+      page.getByLabel("With examples & applications", { exact: true }),
+    ).not.toBeChecked();
+    await expect(
+      page.getByLabel("With comparisons", { exact: true }),
+    ).not.toBeChecked();
+    await page.getByLabel("Knowledge topic").selectOption("african-delivery");
+    await expect(page.locator(".knowledge-results-heading")).toContainText(
+      "25 definitions found",
+    );
+    await search.fill("AfCFTA trade in goods");
+    await page
+      .getByRole("button", { name: "AfCFTA trade in goods", exact: true })
+      .click();
+    await expect(dialog).toContainText(
+      "does not imply immediate free circulation",
+    );
+    await expect(
+      dialog.locator(".knowledge-detail-sources a").first(),
+    ).toHaveAttribute(
+      "href",
+      "https://au.int/en/african-continental-free-trade-area",
+    );
+    await dialog
+      .getByRole("button", { name: "Close definition", exact: true })
+      .click();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBeTruthy();
     expect(errors).toEqual([]);
   });

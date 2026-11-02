@@ -2,7 +2,7 @@
 let knowledgeOpen = false;
 let knowledgeSection = "learn";
 function knowledgeSectionNavigation() {
-  return `<nav class="knowledge-sections" aria-label="Knowledge Centre sections">${[
+  return `<p class="knowledge-depth-note">${PMKnowledge.knowledgeStats.practical} entries with examples, practical applications and common mistakes · ${PMKnowledge.knowledgeStats.comparisons} concept comparisons. Use the Glossary depth filters to find them.</p><nav class="knowledge-sections" aria-label="Knowledge Centre sections">${[
     ["learn", "Learn & refresh"],
     ["glossary", "Glossary"],
     ["tools", "Practice lab"],
@@ -25,6 +25,8 @@ let knowledgeFilters = {
     category: "All",
     letter: "All",
     favouritesOnly: false,
+    practicalOnly: false,
+    comparisonsOnly: false,
   },
   knowledgeLimit = 24,
   knowledgeSaved = [];
@@ -50,8 +52,11 @@ function renderKnowledge() {
   const results = knowledgeResults();
   if (knowledgeSection !== "glossary") {
     if (document.getElementById("offline-learning-root")) {
-      document.querySelector(".knowledge-sections").outerHTML =
-        knowledgeSectionNavigation();
+      const replacement = document.createElement("div");
+      replacement.innerHTML = knowledgeSectionNavigation();
+      document
+        .querySelector(".knowledge-sections")
+        .replaceWith(replacement.querySelector("nav"));
       PMLearning.showSection(knowledgeSection);
       return;
     }
@@ -69,7 +74,7 @@ function renderKnowledge() {
   }
   PMLearning.unmount();
   $("app").innerHTML =
-    `<button class="back" data-action="exit-knowledge">‹ Back to workspace</button><section class="knowledge-centre"><div class="page-heading"><div><div class="eyebrow">A LITTLE KNOWLEDGE. A CLEARER WAY FORWARD.</div><h1>Knowledge Centre</h1><p>Project and operations management, in plain language.</p></div>${button("knowledge-csv", "Export glossary CSV", results.length ? "" : "disabled")}</div><div class="knowledge-intro"><div><h2>Your management reference, always within reach.</h2><p><strong>${PMKnowledge.knowledgeTerms.length} definitions</strong> across <strong>${PMKnowledge.knowledgeTopics.length} topics</strong> — from project charters and critical paths to inventory, maintenance and service operations.</p><small>Original summaries of common practice. Terminology varies by context and framework. Formula assumptions are provided; metric definitions do not imply every metric is implemented in this app.</small></div></div>${knowledgeSectionNavigation()}<div class="panel knowledge-controls"><label class="knowledge-search"><input id="knowledge-search" aria-label="Search definitions" placeholder="Search a term, acronym or concept…" value="${escape(knowledgeFilters.query)}"></label><div class="knowledge-filter-row"><label>Topic<select id="knowledge-topic" aria-label="Knowledge topic"><option value="All">All topics (${PMKnowledge.knowledgeTerms.length})</option>${PMKnowledge.knowledgeTopics.map((t) => `<option value="${t.id}" ${knowledgeFilters.category === t.id ? "selected" : ""}>${escape(t.name)} (${PMKnowledge.knowledgeTerms.filter((k) => k.category === t.id).length})</option>`).join("")}</select></label><div class="knowledge-switch"><button data-action="knowledge-all" aria-pressed="${!knowledgeFilters.favouritesOnly}" class="${knowledgeFilters.favouritesOnly ? "" : "active"}">All terms</button><button data-action="knowledge-saved" aria-pressed="${knowledgeFilters.favouritesOnly}" class="${knowledgeFilters.favouritesOnly ? "active" : ""}">Saved (${knowledgeSaved.length})</button></div><button class="text-link" data-action="knowledge-clear">Clear filters</button></div><div class="knowledge-alphabet" role="group" aria-label="Filter terms by first letter">${["All", "#", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"].map((l) => `<button data-action="knowledge-letter" data-id="${l}" aria-label="${l === "All" ? "All first letters" : l === "#" ? "Terms starting with a number" : "Terms starting with " + l}" aria-pressed="${l === knowledgeFilters.letter}" class="${l === knowledgeFilters.letter ? "active" : ""}">${l}</button>`).join("")}</div></div><div class="knowledge-results-heading"><p role="status">${results.length} ${results.length === 1 ? "definition" : "definitions"} found</p><small>Saved terms stay in this browser. Edition ${PMKnowledge.knowledgeEdition}.</small></div>${
+    `<button class="back" data-action="exit-knowledge">‹ Back to workspace</button><section class="knowledge-centre"><div class="page-heading"><div><div class="eyebrow">A LITTLE KNOWLEDGE. A CLEARER WAY FORWARD.</div><h1>Knowledge Centre</h1><p>Project and operations management, in plain language.</p></div>${button("knowledge-csv", "Export glossary CSV", results.length ? "" : "disabled")}</div><div class="knowledge-intro"><div><h2>Your management reference, always within reach.</h2><p><strong>${PMKnowledge.knowledgeTerms.length} definitions</strong> across <strong>${PMKnowledge.knowledgeTopics.length} topics</strong> — from project charters and critical paths to inventory, maintenance and service operations.</p><small>Original summaries of common practice. Terminology varies by context and framework. Formula assumptions are provided; metric definitions do not imply every metric is implemented in this app.</small></div></div>${knowledgeSectionNavigation()}<div class="panel knowledge-controls"><label class="knowledge-search"><input id="knowledge-search" aria-label="Search definitions" placeholder="Search a term, acronym or concept…" value="${escape(knowledgeFilters.query)}"></label><div class="knowledge-filter-row"><label>Topic<select id="knowledge-topic" aria-label="Knowledge topic"><option value="All">All topics (${PMKnowledge.knowledgeTerms.length})</option>${PMKnowledge.knowledgeTopics.map((t) => `<option value="${t.id}" ${knowledgeFilters.category === t.id ? "selected" : ""}>${escape(t.name)} (${PMKnowledge.knowledgeTerms.filter((k) => k.category === t.id).length})</option>`).join("")}</select></label><div class="knowledge-switch"><button data-action="knowledge-all" aria-pressed="${!knowledgeFilters.favouritesOnly}" class="${knowledgeFilters.favouritesOnly ? "" : "active"}">All terms</button><button data-action="knowledge-saved" aria-pressed="${knowledgeFilters.favouritesOnly}" class="${knowledgeFilters.favouritesOnly ? "active" : ""}">Saved (${knowledgeSaved.length})</button></div><button class="text-link" data-action="knowledge-clear">Clear filters</button></div><div class="knowledge-depth-filters"><label><input id="knowledge-practical" type="checkbox" ${knowledgeFilters.practicalOnly ? "checked" : ""}>With examples &amp; applications</label><label><input id="knowledge-comparisons" type="checkbox" ${knowledgeFilters.comparisonsOnly ? "checked" : ""}>With comparisons</label></div><div class="knowledge-alphabet" role="group" aria-label="Filter terms by first letter">${["All", "#", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"].map((l) => `<button data-action="knowledge-letter" data-id="${l}" aria-label="${l === "All" ? "All first letters" : l === "#" ? "Terms starting with a number" : "Terms starting with " + l}" aria-pressed="${l === knowledgeFilters.letter}" class="${l === knowledgeFilters.letter ? "active" : ""}">${l}</button>`).join("")}</div></div><div class="knowledge-results-heading"><p role="status">${results.length} ${results.length === 1 ? "definition" : "definitions"} found</p><small>Saved terms stay in this browser. Edition ${PMKnowledge.knowledgeEdition}.</small></div>${
       results.length
         ? `<div class="knowledge-grid">${results
             .slice(0, knowledgeLimit)
@@ -94,7 +99,20 @@ function openKnowledgeTerm(id) {
   const t = PMKnowledge.knowledgeTerms.find((t) => t.id === id);
   if (!t) return;
   const modal = $("knowledge-dialog");
-  modal.innerHTML = `<div class="knowledge-dialog-header"><div><div class="eyebrow">${escape(knowledgeTopic(t.category))}</div><h2 id="knowledge-detail-title" tabindex="-1">${escape(t.name)}</h2></div><button class="icon-button" aria-label="Close definition" data-action="knowledge-close">×</button></div><div class="knowledge-dialog-content">${t.aliases.length ? `<p class="knowledge-detail-aliases"><strong>Also called / abbreviated:</strong> ${escape(t.aliases.join(" · "))}</p>` : ""}<p class="knowledge-definition">${escape(t.definition)}</p>${t.formula ? `<section class="knowledge-formula"><h3>Formula</h3><p>${escape(t.formula)}</p><h4>Conditions & interpretation</h4><p>${escape(t.assumptions || "")}</p></section>` : ""}${t.example ? `<section class="knowledge-example"><h3>Illustrative example</h3><p>${escape(t.example.replace(/^Illustrative: /, ""))}</p></section>` : ""}<div class="knowledge-related"><h3>Related terms</h3><div>${t.related
+  modal.innerHTML = `<div class="knowledge-dialog-header"><div><div class="eyebrow">${escape(knowledgeTopic(t.category))}</div><h2 id="knowledge-detail-title" tabindex="-1">${escape(t.name)}</h2></div><button class="icon-button" aria-label="Close definition" data-action="knowledge-close">×</button></div><div class="knowledge-dialog-content">${t.aliases.length ? `<p class="knowledge-detail-aliases"><strong>Also called / abbreviated:</strong> ${escape(t.aliases.join(" · "))}</p>` : ""}<p class="knowledge-definition">${escape(t.definition)}</p>${t.practicalUse ? `<section class="knowledge-application"><h3>Apply in practice</h3><p>${escape(t.practicalUse)}</p></section>` : ""}${t.pitfall ? `<section class="knowledge-pitfall"><h3>Common mistake</h3><p>${escape(t.pitfall)}</p></section>` : ""}${
+    t.comparisons?.length
+      ? `<section class="knowledge-comparisons"><h3>Compare related concepts</h3>${t.comparisons
+          .map((c) => {
+            const other = PMKnowledge.knowledgeTerms.find(
+              (x) => x.id === c.termId,
+            );
+            return other
+              ? `<article><button class="text-link" data-action="knowledge-detail" data-id="${other.id}">${escape(other.name)} →</button><p>${escape(c.distinction)}</p></article>`
+              : "";
+          })
+          .join("")}</section>`
+      : ""
+  }${t.formula ? `<section class="knowledge-formula"><h3>Formula</h3><p>${escape(t.formula)}</p><h4>Conditions & interpretation</h4><p>${escape(t.assumptions || "")}</p></section>` : ""}${t.example ? `<section class="knowledge-example"><h3>Illustrative example</h3><p>${escape(t.example.replace(/^Illustrative: /, ""))}</p></section>` : ""}<div class="knowledge-related"><h3>Related terms</h3><div>${t.related
     .map((id) => {
       const related = PMKnowledge.knowledgeTerms.find((x) => x.id === id);
       return related
@@ -116,7 +134,7 @@ function openKnowledgeTerm(id) {
     })
     .join(
       "",
-    )}<small>Original plain-language summary; the links are references for further study, not attributed quotations.</small></div><button class="button" data-action="knowledge-save" data-id="${t.id}" aria-pressed="${knowledgeSaved.includes(id)}">${knowledgeSaved.includes(id) ? "Remove from saved terms" : "Save this term"}</button></div>`;
+    )}${t.reviewed ? `<small>Summary reviewed ${escape(t.reviewed)}.</small>` : ""}<small>Original plain-language summary; the links are references for further study, not attributed quotations.</small></div><button class="button" data-action="knowledge-save" data-id="${t.id}" aria-pressed="${knowledgeSaved.includes(id)}">${knowledgeSaved.includes(id) ? "Remove from saved terms" : "Save this term"}</button></div>`;
   modal.dataset.term = id;
   if (!modal.open) modal.showModal();
   $("knowledge-detail-title").focus();
@@ -172,6 +190,8 @@ document.addEventListener("click", (event) => {
           category: "All",
           letter: "All",
           favouritesOnly: false,
+          practicalOnly: false,
+          comparisonsOnly: false,
         };
       knowledgeLimit = a === "knowledge-more" ? knowledgeLimit + 24 : 24;
       renderKnowledge();
@@ -193,6 +213,16 @@ document.addEventListener("change", (event) => {
   if (event.target.id !== "knowledge-topic") return;
   knowledgeFilters.category = event.target.value;
   knowledgeFilters.letter = "All";
+  knowledgeLimit = 24;
+  renderKnowledge();
+});
+
+document.addEventListener("change", (event) => {
+  const id = event.target.id;
+  if (id !== "knowledge-practical" && id !== "knowledge-comparisons") return;
+  knowledgeFilters[
+    id === "knowledge-practical" ? "practicalOnly" : "comparisonsOnly"
+  ] = event.target.checked;
   knowledgeLimit = 24;
   renderKnowledge();
 });

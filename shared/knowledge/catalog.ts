@@ -1,3 +1,5 @@
+import { termInsights, comparisonPairs, metricInsights } from "./insights";
+import { expansionSources, expansionTopics } from "./expansion";
 /** Original plain-language summaries; references are further reading, not quotations. */
 export type KnowledgeTerm = {
   id: string;
@@ -8,10 +10,15 @@ export type KnowledgeTerm = {
   formula?: string;
   assumptions?: string;
   example?: string;
+  practicalUse?: string;
+  pitfall?: string;
+  comparisons?: { termId: string; distinction: string }[];
+  reviewed?: string;
   related: string[];
   sources: string[];
 };
 export const knowledgeSources = {
+  ...expansionSources,
   apm: {
     name: "Association for Project Management — glossary",
     url: "https://www.apm.org.uk/resources/glossary/",
@@ -683,6 +690,13 @@ Document control|Managing document identity, ownership, version, approval, acces
   },
 ];
 
+knowledgeTopics.push(
+  ...expansionTopics.map((topic) => ({
+    ...topic,
+    sources: [...topic.sources],
+  })),
+);
+
 const additionalEntries: Record<string, string> = {
   foundations:
     "Predictive delivery|An approach that plans substantial scope and delivery detail in advance and manages execution against agreed baselines, with controlled changes.|Waterfall approach\nAdaptive delivery|An approach that adjusts detailed plans through frequent feedback and learning when requirements or solutions are uncertain.\nHybrid delivery|An intentional combination of predictive and adaptive practices chosen to suit the work rather than applying one approach uniformly.\nProjectification|Organising a growing proportion of an organisation's work through temporary projects, with implications for governance, capability and resource allocation.\nBenefits realisation|The process of planning, enabling, measuring and sustaining expected benefits, often extending beyond project closure.|Benefits realization",
@@ -743,12 +757,16 @@ export const knowledgeTerms: KnowledgeTerm[] = knowledgeTopics.flatMap(
       .split("\n")
       .filter(Boolean)
       .map((line) => {
-        const [name, definition, aliases = ""] = line.split("|");
+        const [name, definition, aliases = "", example, practicalUse, pitfall] =
+          line.split("|");
         return {
           id: knowledgeSlug(name),
           name,
           category: topic.id,
           definition,
+          ...(example
+            ? { example, practicalUse, pitfall, reviewed: "2026-11-02" }
+            : {}),
           aliases: aliases ? aliases.split(";") : [],
           sources: [...topic.sources],
           related: [],
@@ -1104,12 +1122,109 @@ const enhancements: Record<string, Partial<KnowledgeTerm>> = {
     related: ["sponsor", "project-management-plan", "business-case"],
   },
 };
+const expansionGroupSizes: Record<string, number[]> = {
+  "advanced-planning": [5, 8, 8, 4],
+  "commercial-advanced": [4, 6, 3, 3, 4, 5],
+  "programme-portfolio": [10, 7, 5, 3],
+  "leadership-change": [7, 6, 6, 6],
+  "digital-delivery": [8, 5, 5, 1, 6],
+  "advanced-operations": [11, 5, 7, 2],
+  "sector-delivery": [5, 5, 5, 5, 5],
+  "african-delivery": [9, 2, 7, 2, 3, 2],
+};
+const expansionRelated = new Map<string, string[]>();
+for (const [category, sizes] of Object.entries(expansionGroupSizes)) {
+  const terms = knowledgeTerms.filter((t) => t.category === category);
+  let offset = 0;
+  for (const size of sizes) {
+    const group = terms.slice(offset, offset + size);
+    offset += size;
+    for (let i = 0; i < group.length; i++)
+      expansionRelated.set(
+        group[i].id,
+        group
+          .filter((t) => t.id !== group[i].id)
+          .sort(
+            (a, b) =>
+              Math.abs(group.indexOf(a) - i) - Math.abs(group.indexOf(b) - i),
+          )
+          .slice(0, 3)
+          .map((t) => t.id),
+      );
+  }
+}
+expansionRelated.set("digital-twin", [
+  "building-information-modelling",
+  "asset-life-cycle-management",
+  "predictive-maintenance",
+]);
 for (const term of knowledgeTerms) {
-  Object.assign(term, enhancements[term.id] || {});
+  Object.assign(
+    term,
+    enhancements[term.id] || {},
+    termInsights[term.id] || {},
+    metricInsights[term.id] || {},
+  );
+  if (term.category === "commercial-advanced") {
+    const index = knowledgeTerms
+      .filter((t) => t.category === term.category)
+      .indexOf(term);
+    term.sources =
+      index >= 20 ? ["iccdisputes", "cips"] : ["cips", "worldbank", "pmi"];
+  }
+  if (term.category === "sector-delivery") {
+    const index = knowledgeTerms
+      .filter((t) => t.category === term.category)
+      .indexOf(term);
+    term.sources = [
+      ["worldbank", "pmi", "iso"],
+      ["fao", "ascm"],
+      ["who"],
+      ["sphere", "worldbanksocial"],
+      ["worldbank", "oecdgov"],
+    ][Math.floor(index / 5)];
+  }
+  if (term.category === "digital-delivery") {
+    const index = knowledgeTerms
+      .filter((t) => t.category === term.category)
+      .indexOf(term);
+    term.sources =
+      index < 8
+        ? ["scrum", "iiba", "pmi"]
+        : index < 18
+          ? ["dora", "sre"]
+          : index === 18
+            ? ["iso", "pmi"]
+            : ["nistai"];
+  }
+  if (expansionRelated.has(term.id))
+    term.related = expansionRelated.get(term.id)!;
   if (!term.related.length)
     term.related = knowledgeTerms
       .filter((t) => t.category === term.category && t.id !== term.id)
       .slice(0, 3)
       .map((t) => t.id);
 }
+for (const [left, right, distinction] of comparisonPairs) {
+  const a = knowledgeTerms.find((t) => t.id === left),
+    b = knowledgeTerms.find((t) => t.id === right);
+  if (!a || !b) throw new Error(`Unknown comparison term: ${left} / ${right}`);
+  (a.comparisons ??= []).push({ termId: right, distinction });
+  (b.comparisons ??= []).push({ termId: left, distinction });
+  for (const [term, related] of [
+    [a, right],
+    [b, left],
+  ] as const)
+    if (!term.related.includes(related)) term.related.unshift(related);
+}
 export const knowledgeEdition = "2026-11";
+
+export const knowledgeStats = {
+  terms: knowledgeTerms.length,
+  topics: knowledgeTopics.length,
+  practical: knowledgeTerms.filter(
+    (t) => t.practicalUse && t.example && t.pitfall,
+  ).length,
+  comparisons:
+    knowledgeTerms.reduce((n, t) => n + (t.comparisons?.length || 0), 0) / 2,
+};

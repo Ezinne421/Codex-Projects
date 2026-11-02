@@ -87,7 +87,7 @@ This MVP enforces tenant isolation using separate SQLite databases plus server-s
 ### Knowledge Centre
 
 Open **Knowledge Centre** in the app menu, public website navigation/footer, or
-standalone HTML header. The library contains 538 original definitions across 21
+standalone HTML header. The library contains 738 original definitions across 29
 topics in project and operations management: governance, scope, scheduling,
 finance, earned value, Agile, risk, quality, Lean, inventory, procurement,
 supply chains, maintenance, people, monitoring and evaluation, service management,
@@ -137,3 +137,27 @@ Learning material is in `shared/knowledge/learning.ts`; progress scheduling,
 validation and calculator logic are in `shared/knowledge/practice.ts`. The same
 `src/LearningHub.tsx` runs in the hosted app and, bundled without external assets,
 in the standalone HTML. Source review notes are in `docs/knowledge-source-review.md`.
+
+
+#### Expanded practitioner glossary
+
+The additional 200 entries cover eight areas: advanced planning and schedule
+risk; commercial, construction contracts and disputes; programme and portfolio
+investment; leadership and organisational learning; product discovery, DevOps
+and AI; queueing and production simulation; industry-specific delivery; and
+African trade, community and delivery contexts.
+
+**250 entries** now include an original example, a practical application and a
+common mistake. **50 bidirectional concept comparisons** explain distinctions
+such as verification/validation, claims/variations, continuous delivery/deployment,
+ATP/CTP, consultation/consent and local content/supplier localisation. Use the
+**With examples & applications** and **With comparisons** filters in the Glossary.
+Search covers the deeper guidance, and CSV exports include applications,
+pitfalls, comparisons, related terms, references and available review dates.
+
+New topic content is in `shared/knowledge/expansion.ts`. Existing-term guidance,
+comparisons and selected advanced formulas are in `shared/knowledge/insights.ts`.
+Keep original summaries, model assumptions and illustrative examples together.
+Do not turn context-dependent contract or country requirements into universal
+rules. Use the relevant authoritative reference and actual governing framework
+for formal decisions. References are further reading, not attributed quotations.

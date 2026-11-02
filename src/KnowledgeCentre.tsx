@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import {
   knowledgeTerms,
+  knowledgeStats,
   knowledgeTopics,
   knowledgeSources,
   knowledgeEdition,
@@ -43,6 +44,8 @@ export default function KnowledgeCentre({
     [category, setCategory] = useState("All"),
     [letter, setLetter] = useState("All"),
     [favouritesOnly, setFavouritesOnly] = useState(false),
+    [practicalOnly, setPracticalOnly] = useState(false),
+    [comparisonsOnly, setComparisonsOnly] = useState(false),
     [limit, setLimit] = useState(perPage),
     [saved, setSaved] = useState<string[]>(() => readSaved(storageKey)),
     [selectedId, setSelectedId] = useState<string | null>(null),
@@ -50,7 +53,10 @@ export default function KnowledgeCentre({
   const dialog = useRef<HTMLDialogElement>(null),
     dialogTitle = useRef<HTMLHeadingElement>(null);
   useEffect(() => setSaved(readSaved(storageKey)), [storageKey]);
-  useEffect(() => setLimit(perPage), [query, category, letter, favouritesOnly]);
+  useEffect(
+    () => setLimit(perPage),
+    [query, category, letter, favouritesOnly, practicalOnly, comparisonsOnly],
+  );
   const results = useMemo(
     () =>
       searchKnowledge({
@@ -58,9 +64,19 @@ export default function KnowledgeCentre({
         category,
         letter,
         favouritesOnly,
+        practicalOnly,
+        comparisonsOnly,
         savedIds: saved,
       }),
-    [query, category, letter, favouritesOnly, saved],
+    [
+      query,
+      category,
+      letter,
+      favouritesOnly,
+      saved,
+      practicalOnly,
+      comparisonsOnly,
+    ],
   );
   const selected = knowledgeTerms.find((t) => t.id === selectedId);
   useEffect(() => {
@@ -88,6 +104,8 @@ export default function KnowledgeCentre({
     setCategory("All");
     setLetter("All");
     setFavouritesOnly(false);
+    setPracticalOnly(false);
+    setComparisonsOnly(false);
     setLimit(perPage);
   }
   function exportCsv() {
@@ -159,6 +177,11 @@ export default function KnowledgeCentre({
           </small>
         </div>
       </div>
+      <p className="knowledge-depth-note">
+        {knowledgeStats.practical} entries with examples, practical applications
+        and common mistakes · {knowledgeStats.comparisons} concept comparisons.
+        Use the Glossary depth filters to find them.
+      </p>
       <nav
         className="knowledge-sections"
         aria-label="Knowledge Centre sections"
@@ -253,6 +276,24 @@ export default function KnowledgeCentre({
               <button className="text-link" onClick={reset}>
                 Clear filters
               </button>
+            </div>
+            <div className="knowledge-depth-filters">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={practicalOnly}
+                  onChange={(e) => setPracticalOnly(e.target.checked)}
+                />
+                With examples & applications
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={comparisonsOnly}
+                  onChange={(e) => setComparisonsOnly(e.target.checked)}
+                />
+                With comparisons
+              </label>
             </div>
             <div
               className="knowledge-alphabet"
@@ -421,6 +462,40 @@ export default function KnowledgeCentre({
                 </p>
               )}
               <p className="knowledge-definition">{selected.definition}</p>
+              {selected.practicalUse && (
+                <section className="knowledge-application">
+                  <h3>Apply in practice</h3>
+                  <p>{selected.practicalUse}</p>
+                </section>
+              )}
+              {selected.pitfall && (
+                <section className="knowledge-pitfall">
+                  <h3>Common mistake</h3>
+                  <p>{selected.pitfall}</p>
+                </section>
+              )}
+              {!!selected.comparisons?.length && (
+                <section className="knowledge-comparisons">
+                  <h3>Compare related concepts</h3>
+                  {selected.comparisons.map((c) => {
+                    const other = knowledgeTerms.find((t) => t.id === c.termId);
+                    return other ? (
+                      <article key={c.termId}>
+                        <button
+                          type="button"
+                          className="text-link"
+                          onClick={() => setSelectedId(c.termId)}
+                        >
+                          {other.name}
+                          <ArrowRight size={14} />
+                        </button>
+                        <p>{c.distinction}</p>
+                      </article>
+                    ) : null;
+                  })}
+                </section>
+              )}
+
               {selected.formula && (
                 <section className="knowledge-formula">
                   <h3>Formula</h3>
@@ -474,6 +549,9 @@ export default function KnowledgeCentre({
                     </a>
                   ) : null;
                 })}
+                {selected.reviewed && (
+                  <small>Summary reviewed {selected.reviewed}.</small>
+                )}
                 <small>
                   Original plain-language summary; the links are references for
                   further study, not attributed quotations.

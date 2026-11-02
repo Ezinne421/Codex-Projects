@@ -1,4 +1,9 @@
-import { knowledgeTerms, knowledgeTopics, type KnowledgeTerm } from "./catalog";
+import {
+  knowledgeTerms,
+  knowledgeTopics,
+  knowledgeSources,
+  type KnowledgeTerm,
+} from "./catalog";
 export const normaliseKnowledge = (value: string) =>
   value
     .toLowerCase()
@@ -11,6 +16,8 @@ export type KnowledgeFilters = {
   category?: string;
   letter?: string;
   favouritesOnly?: boolean;
+  practicalOnly?: boolean;
+  comparisonsOnly?: boolean;
   savedIds?: string[];
 };
 export function searchKnowledge(
@@ -27,6 +34,9 @@ export function searchKnowledge(
     )
       return false;
     if (filters.favouritesOnly && !saved.has(t.id)) return false;
+    if (filters.practicalOnly && !(t.example && t.practicalUse && t.pitfall))
+      return false;
+    if (filters.comparisonsOnly && !t.comparisons?.length) return false;
     const initial = /^[0-9]/.test(t.name)
       ? "#"
       : t.name.charAt(0).toUpperCase();
@@ -39,7 +49,17 @@ export function searchKnowledge(
     const category =
       knowledgeTopics.find((c) => c.id === t.category)?.name || "";
     const text = normaliseKnowledge(
-      [t.name, ...t.aliases, t.definition, category, t.formula || ""].join(" "),
+      [
+        t.name,
+        ...t.aliases,
+        t.definition,
+        category,
+        t.formula || "",
+        t.example || "",
+        t.practicalUse || "",
+        t.pitfall || "",
+        ...(t.comparisons || []).map((c) => c.distinction),
+      ].join(" "),
     );
     return words.every((w) => text.includes(w));
   });
@@ -72,6 +92,12 @@ export function knowledgeCsv(terms: KnowledgeTerm[]) {
       "Formula",
       "Formula assumptions",
       "Illustrative example",
+      "Practical application",
+      "Common mistake",
+      "Concept comparisons",
+      "Related terms",
+      "Further reading",
+      "Summary review date",
     ],
     ...terms.map((t) => [
       t.name,
@@ -81,6 +107,27 @@ export function knowledgeCsv(terms: KnowledgeTerm[]) {
       t.formula || "",
       t.assumptions || "",
       t.example || "",
+      t.practicalUse || "",
+      t.pitfall || "",
+      (t.comparisons || [])
+        .map(
+          (c) =>
+            (knowledgeTerms.find((x) => x.id === c.termId)?.name || c.termId) +
+            ": " +
+            c.distinction,
+        )
+        .join("; "),
+      t.related
+        .map((id) => knowledgeTerms.find((x) => x.id === id)?.name || id)
+        .join("; "),
+      t.sources
+        .map(
+          (id) =>
+            knowledgeSources[id as keyof typeof knowledgeSources]?.url || "",
+        )
+        .filter(Boolean)
+        .join("; "),
+      t.reviewed || "",
     ]),
   ];
   return "\uFEFF" + rows.map((row) => row.map(cell).join(",")).join("\r\n");
