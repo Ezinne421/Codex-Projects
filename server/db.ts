@@ -3,6 +3,7 @@ import { mkdirSync, chmodSync } from "node:fs";
 import { resolve, join } from "node:path";
 import type { Request, Response, NextFunction } from "express";
 import { authSchema, tenantSchema } from "./schema.js";
+import { databaseErrorTag } from "./database-error.js";
 import { verifiedDatabaseConfig } from "./database-url.js";
 export const dataDir = resolve(process.env.DATA_DIR || ".data");
 const pgMode = !!process.env.DATABASE_URL || process.env.DB_TEST_PGLITE === "1";
@@ -66,6 +67,7 @@ async function serialLease() {
   await before;
   return unlock;
 }
+let initializationStage = "configuration";
 const rootReady = (async () => {
   if (testPg) {
     const { PGlite } = await import("@electric-sql/pglite");
@@ -91,8 +93,10 @@ const rootReady = (async () => {
       idleTimeoutMillis: 20000,
     });
     pool.on("error", () => console.error("PostgreSQL connection error"));
+    initializationStage = "connect";
     const conn = await pool.connect();
     try {
+      initializationStage = "schema";
       await migrate(conn, authNamespace, authSchema);
     } finally {
       conn.release();
@@ -105,7 +109,13 @@ const rootReady = (async () => {
     sqliteRoot.exec(authSchema);
   }
 })();
-void rootReady.catch(() => {});
+void rootReady.catch((error) =>
+  console.error(
+    "Database initialization failed",
+    initializationStage,
+    databaseErrorTag(error),
+  ),
+);
 function openSqlite(path: string) {
   const db = new DatabaseSync(path);
   db.exec(
@@ -284,11 +294,7 @@ export async function requestDatabase(
     res.once("close", finish);
     scopes.run(scope, () => next());
   } catch (error) {
-    const failure = error as { code?: string; name?: string };
-    console.error(
-      "Persistent database unavailable",
-      failure.code || failure.name || "Error",
-    );
+    console.error("Persistent database unavailable", databaseErrorTag(error));
     res.status(503).json({
       error:
         "The database is temporarily unavailable. Please try again shortly.",

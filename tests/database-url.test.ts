@@ -55,3 +55,18 @@ test("Supabase connections trust the official CA while retaining certificate and
   );
   assert.equal((other.ssl as any).ca, undefined);
 });
+
+test("missing or placeholder database passwords are identified without exposing credentials", async () => {
+  const { verifiedDatabaseConfig } = await import("../server/database-url.js");
+  for (const password of ["", "[YOUR-PASSWORD]"])
+    assert.throws(
+      () =>
+        verifiedDatabaseConfig(
+          `postgresql://test:${password}@db.example.com/postgres`,
+        ),
+      (e) =>
+        ["DATABASE_PASSWORD_MISSING", "DATABASE_PASSWORD_PLACEHOLDER"].includes(
+          (e as any).code,
+        ),
+    );
+});

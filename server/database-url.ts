@@ -14,6 +14,17 @@ export function verifiedDatabaseUrl(value: string) {
 export function verifiedDatabaseConfig(value: string) {
   const config = parseIntoClientConfig(verifiedDatabaseUrl(value));
   delete config.connectionString;
+  if (typeof config.password !== "string" || !config.password) {
+    throw Object.assign(new Error("Database password is missing"), {
+      code: "DATABASE_PASSWORD_MISSING",
+    });
+  }
+  if (/\[.*password.*\]|YOUR[-_]PASSWORD/i.test(config.password)) {
+    throw Object.assign(
+      new Error("Database password placeholder is not configured"),
+      { code: "DATABASE_PASSWORD_PLACEHOLDER" },
+    );
+  }
   const ssl =
     typeof config.ssl === "object" && config.ssl ? { ...config.ssl } : {};
   if (
