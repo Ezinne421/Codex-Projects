@@ -28,3 +28,30 @@ test("database URLs require encrypted certificate-verified connections, includin
     "/trusted/provider.crt",
   );
 });
+
+test("Supabase connections trust the official CA while retaining certificate and hostname verification", async () => {
+  const { verifiedDatabaseConfig } = await import("../server/database-url.js");
+  const { supabaseCertificateAuthority } =
+    await import("../server/supabase-ca.js");
+  const { X509Certificate } = await import("node:crypto");
+  const { checkServerIdentity } = await import("node:tls");
+  const certificate = new X509Certificate(supabaseCertificateAuthority);
+  assert.equal(
+    certificate.fingerprint256,
+    "80:70:25:AD:50:D4:ED:21:9D:2C:9C:7D:29:9C:00:4F:82:4E:B0:0C:F7:F6:5A:FE:F6:07:D0:7B:72:E6:CA:FA",
+  );
+  const config = verifiedDatabaseConfig(
+    "postgresql://test:example@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require",
+  );
+  const ssl = config.ssl as any;
+  assert.equal(ssl.rejectUnauthorized, true);
+  assert.equal(ssl.checkServerIdentity, checkServerIdentity);
+  assert.ok(ssl.ca.includes(supabaseCertificateAuthority));
+  assert.ok(ssl.ca.length > 1);
+  const client = new Client(config);
+  assert.ok((client.ssl as any).ca.includes(supabaseCertificateAuthority));
+  const other = verifiedDatabaseConfig(
+    "postgresql://test:example@unrelated.example.com/postgres",
+  );
+  assert.equal((other.ssl as any).ca, undefined);
+});

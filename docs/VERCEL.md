@@ -24,6 +24,10 @@ In the selected Supabase project's **Connect** dialog, choose its PostgreSQL tra
 
 This app uses its existing server-managed accounts; using Supabase for PostgreSQL does not automatically migrate accounts to Supabase Auth. Existing Supabase public data remains separate. No new Supabase project is created when reusing the connection.
 
+### Supabase certificate trust
+
+The server trusts the public Supabase Root 2021 CA for Supabase database hosts, alongside Node's configured default CAs. The certificate comes from Supabase's published dashboard configuration (`ssl:certificate_url`) at `https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt`. Tests pin its SHA-256 fingerprint and verify hostname/certificate checks stay enabled. URI parsing occurs before trust configuration so an `sslmode` query parameter cannot silently discard the provider CA. Other database providers keep their normal trust configuration. No TLS verification is disabled.
+
 ## Acceptance checks on the live deployment
 
 - Register an account, create a project, record budget lines and expenses, and check the totals.

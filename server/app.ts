@@ -69,16 +69,6 @@ if (process.env.VERCEL) app.set("trust proxy", 1);
 app.use(helmet({ contentSecurityPolicy: production ? undefined : false }));
 app.use(express.json({ limit: "128kb" }));
 app.use(cookieParser());
-app.use(
-  "/api",
-  rateLimit({
-    windowMs: 60000,
-    limit: 240,
-    store: createDatabaseRateLimitStore("api", 60000),
-    standardHeaders: "draft-8",
-    legacyHeaders: false,
-  }),
-);
 app.use("/api", (req, res, next) => {
   res.setHeader("Cache-Control", "no-store");
   if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
@@ -94,6 +84,17 @@ app.use("/api", (req, res, next) => {
   }
   next();
 });
+app.use("/api", requestDatabase);
+app.use(
+  "/api",
+  rateLimit({
+    windowMs: 60000,
+    limit: 240,
+    store: createDatabaseRateLimitStore("api", 60000),
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+  }),
+);
 const authLimiter = rateLimit({
   windowMs: 15 * 60000,
   limit: 30,
@@ -102,7 +103,6 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 app.use("/api/auth", authLimiter);
-app.use("/api", requestDatabase);
 async function session(res: Response, userId: string) {
   const token = randomBytes(32).toString("hex");
   await authDb
