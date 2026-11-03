@@ -20,7 +20,9 @@ ALTER TABLE audit_logs ADD COLUMN details TEXT NOT NULL DEFAULT '{}';
 `,
   },
 ];
-export const authMigrations: { version: number; sql: string }[] = [];
+export const authMigrations: { version: number; sql: string }[] = [
+  { version: 1, sql: "" },
+];
 export function migrateSqlite(db: any, migrations: typeof tenantMigrations) {
   db.exec("BEGIN IMMEDIATE");
   try {
@@ -31,7 +33,7 @@ export function migrateSqlite(db: any, migrations: typeof tenantMigrations) {
           .get(migration.version)
       )
         continue;
-      db.exec(migration.sql);
+      if (migration.sql.trim()) db.exec(migration.sql);
       db.prepare("INSERT INTO schema_migrations(version) VALUES(?)").run(
         migration.version,
       );

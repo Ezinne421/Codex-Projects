@@ -989,6 +989,13 @@ app.use((error: any, _req: Request, res: Response, _next: NextFunction) => {
     error.status < 500
   )
     return res.status(error.status).json({ error: error.message });
+  if (["40P01", "40001"].includes(error.code))
+    return res
+      .status(409)
+      .json({
+        error:
+          "A concurrent update interrupted this operation. Refresh your records and try again.",
+      });
   if (error.type === "entity.parse.failed")
     return res.status(400).json({ error: "Invalid JSON" });
   if (error.type === "entity.too.large")

@@ -7,7 +7,9 @@ are created additively. Tenant migration 1 adds task assignment, weights, calend
 controls, document revision/review fields and activity metadata. Applied versions
 are recorded in `schema_migrations`; SQLite uses an immediate transaction and
 PostgreSQL uses a transaction plus a schema-specific advisory lock. Repeated
-initialisation is safe. Existing owners receive an owner membership on sign-in.
+initialisation is safe. Current schema versions are checked before opening a
+migration transaction, then checked again after acquiring the lock. Cold starts
+do not repeat DDL or permission changes for an up-to-date schema. Existing owners receive an owner membership on sign-in.
 Membership invitations do not move or delete a user's original workspace.
 
 Run `npm run build`, `npm test`, `npm run test:postgres` and `npm run test:e2e`

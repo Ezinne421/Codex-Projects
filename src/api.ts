@@ -7,7 +7,16 @@ export async function api(path: string, method = "GET", body?: unknown) {
     },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
-  const data = await response.json();
+  let data: any;
+  try {
+    data = JSON.parse(await response.text());
+  } catch {
+    throw new Error(
+      response.status === 429
+        ? "Too many requests. Please wait a moment before trying again."
+        : "The service is temporarily unavailable. Please try again shortly.",
+    );
+  }
   if (!response.ok) throw new Error(data.error || "Request failed");
   return data;
 }

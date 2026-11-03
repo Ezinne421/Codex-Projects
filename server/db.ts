@@ -217,17 +217,43 @@ function pgSql(sql: string, schema: string) {
     .join("");
 }
 
-async function migrate(
+export async function migrate(
   conn: { query: (s: string, v?: any[]) => Promise<any> },
   schema: string,
   ddl: string,
 ) {
+  const migrations =
+    schema === authNamespace ? authMigrations : versionedTenantMigrations;
+  const expected = Math.max(0, ...migrations.map((m) => m.version));
+  const current = async () => {
+    try {
+      const exists = await conn.query("SELECT to_regclass($1) AS relation", [
+        `"${schema}"."schema_migrations"`,
+      ]);
+      if (!exists.rows[0]?.relation) return false;
+      const found = await conn.query(
+        pgSql("SELECT MAX(version) AS version FROM schema_migrations", schema),
+      );
+      return Number(found.rows[0]?.version || 0) >= expected;
+    } catch (e) {
+      if (["42P01", "3F000"].includes((e as any).code)) return false;
+      throw e;
+    }
+  };
+  // A current schema is read-only at startup. Re-running DDL here can deadlock
+  // with normal requests on another serverless instance.
+  if (await current()) return;
   await conn.query("BEGIN");
   try {
     if (!testPg)
       await conn.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
         "projectmanager:" + schema,
       ]);
+    // Another instance may have completed the migration while we waited.
+    if (await current()) {
+      await conn.query("COMMIT");
+      return;
+    }
     if (schema !== "public")
       await conn.query(`CREATE SCHEMA IF NOT EXISTS "${schema}"`);
     for (const statement of ddl
@@ -235,8 +261,6 @@ async function migrate(
       .map((x) => x.trim())
       .filter(Boolean))
       await conn.query(pgSql(statement, schema));
-    const migrations =
-      schema === authNamespace ? authMigrations : versionedTenantMigrations;
     for (const migration of migrations) {
       const found = await conn.query(
         pgSql("SELECT version FROM schema_migrations WHERE version=?", schema),
