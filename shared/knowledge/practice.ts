@@ -1,4 +1,4 @@
-import { learningLessons } from "./learning";
+import { learningLessons } from "./learning.js";
 export type LessonProgress = {
   correct: number;
   total: number;

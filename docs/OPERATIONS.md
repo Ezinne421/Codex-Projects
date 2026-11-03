@@ -11,7 +11,10 @@ initialisation is safe. Existing owners receive an owner membership on sign-in.
 Membership invitations do not move or delete a user's original workspace.
 
 Run `npm run build`, `npm test`, `npm run test:postgres` and `npm run test:e2e`
-before deployment. PostgreSQL tests use an embedded compatible engine; validate
+before deployment. The build compiles the server with NodeNext and loads the emitted request handler
+in plain Node, so imports
+that work in the development loader but fail in Node production are rejected.
+PostgreSQL tests use an embedded compatible engine; validate
 new releases against the actual hosted service too. CI performs these checks.
 
 Retain a known-good release. Rolling back application code does not require
