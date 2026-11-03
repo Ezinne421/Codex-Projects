@@ -306,6 +306,6 @@ test("authenticated learning sync survives a fresh browser context and recovery 
     .getByRole("button", { name: "Download private recovery kit", exact: true })
     .click();
   expect((await download).suggestedFilename()).toBe(
-    "projectmanager-recovery-codes.txt",
+    "next-mile-recovery-codes.txt",
   );
 });

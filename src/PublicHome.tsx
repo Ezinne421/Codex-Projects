@@ -13,12 +13,12 @@ export default function PublicHome({
       <section className="editorial-hero">
         <div className="hero-copy">
           <div className="editorial-kicker">
-            <span className="editorial-square" /> PROJECTMANAGER / AFRICA
+            <span className="editorial-square" /> NEXT MILE / PROJECTS & PEOPLE
           </div>
           <h1>
-            The work matters.
+            Turn plans into
             <br />
-            Make it <em>count.</em>
+            <em>progress.</em>
           </h1>
           <p>
             A professional home for ambitious projects. Bring the plan, the
@@ -64,7 +64,7 @@ export default function PublicHome({
               >
                 <path
                   fill="currentColor"
-                  d="M5 34V8h8l9 10V8h9v26h-7V20l-5 6-7-9v17z"
+                  d="M5 34V8h7l12 17V8h7v26h-7L12 17v17z"
                 />
               </svg>
             </span>
@@ -138,7 +138,7 @@ export default function PublicHome({
       <section className="editorial-learning">
         <div className="learning-cover">
           <span>
-            THE PROJECTMANAGER
+            THE NEXT MILE
             <br />
             FIELD GUIDE
           </span>

@@ -118,8 +118,9 @@ test("register, create, budget, task, risk, document, export, logout and return"
 });
 test("landing page fits mobile and desktop", async ({ page }) => {
   await page.goto("/");
+  await expect(page).toHaveTitle("Next Mile — Turn plans into progress.");
   await expect(
-    page.getByRole("heading", { name: /The work matters/ }),
+    page.getByRole("heading", { name: /Turn plans into progress/ }),
   ).toBeVisible();
   await page.screenshot({
     path: "/tmp/projectmanager-landing.png",

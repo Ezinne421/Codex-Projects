@@ -16,7 +16,7 @@ if (process.env.NODE_ENV === "production") {
   app.use(vite.middlewares);
 }
 const server = app.listen(port, "0.0.0.0", () =>
-  console.log(`ProjectManager listening on port ${port}`),
+  console.log(`Next Mile listening on port ${port}`),
 );
 for (const signal of ["SIGTERM", "SIGINT"])
   process.on(signal, () => server.close(() => process.exit(0)));

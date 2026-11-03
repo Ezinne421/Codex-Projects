@@ -1,4 +1,4 @@
-PROJECTMANAGER AI AFRICA — LOCAL HTML EDITION
+NEXT MILE — LOCAL HTML EDITION
 
 1. Extract this ZIP (in Windows, right-click it and choose Extract All).
 2. Open projectmanager-ai-africa.html with Google Chrome.

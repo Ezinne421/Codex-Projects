@@ -151,16 +151,13 @@ function Logo() {
     <span className="logo">
       <span className="logo-symbol">
         <svg viewBox="0 0 36 42" width="27" height="32" aria-hidden="true">
-          <path
-            fill="currentColor"
-            d="M5 34V8h8l9 10V8h9v26h-7V20l-5 6-7-9v17z"
-          />
+          <path fill="currentColor" d="M5 34V8h7l12 17V8h7v26h-7L12 17v17z" />
         </svg>
       </span>
       <span>
-        ProjectManager
+        Next Mile
         <span className="logo-sub">
-          AI AFRICA <i />
+          TURN PLANS INTO PROGRESS <i />
         </span>
       </span>
     </span>
@@ -824,7 +821,7 @@ function App() {
             />
           )}
           <footer>
-            <span>© {new Date().getFullYear()} ProjectManager AI Africa</span>
+            <span>© {new Date().getFullYear()} Next Mile</span>
             <div>
               {["Knowledge Centre", "Contact", "Privacy", "Terms"].map((p) => (
                 <button
@@ -2265,7 +2262,7 @@ function App() {
                   <span className="status-dot" /> A little structure. A lot of
                   possibility.
                 </span>
-                <span>Made for Africa. Built for impact.</span>
+                <span>Turn plans into progress.</span>
               </div>
             </main>
           </div>
@@ -2404,7 +2401,7 @@ function PageTitle({
   return (
     <div className="page-heading">
       <div>
-        <div className="eyebrow">PROJECTMANAGER AI AFRICA</div>
+        <div className="eyebrow">NEXT MILE</div>
         <h1>{title}</h1>
         <p>{text}</p>
       </div>
@@ -2587,13 +2584,13 @@ function Auth({
           starts with a plan.
         </h1>
         <p>
-          A focused workspace for the people moving projects — and Africa —
-          forward.
+          A focused workspace for people turning plans into progress, wherever
+          the work takes them.
         </p>
         <Globe2 size={200} strokeWidth={0.7} />
       </div>
       <section className="auth-card">
-        <span className="eyebrow">PROJECTMANAGER AI AFRICA</span>
+        <span className="eyebrow">NEXT MILE</span>
         <h1>
           {register
             ? "Make space for great work."
@@ -2910,7 +2907,7 @@ function PublicPage({
     About: [
       "Rooted in Africa. Built for impact.",
       [
-        "ProjectManager AI Africa brings project planning, cost control and practical reporting into one focused workspace.",
+        "Next Mile brings project planning, cost control and practical reporting into one focused workspace.",
         "The product is being developed in stages, with functionality and accountable records at its centre.",
       ],
     ],
@@ -2942,7 +2939,7 @@ function PublicPage({
     Terms: [
       "A practical workspace, with clear boundaries.",
       [
-        "ProjectManager AI Africa helps organise project information. AI drafts and estimates require human review; they are not verified professional advice.",
+        "Next Mile helps organise project information. AI drafts and estimates require human review; they are not verified professional advice.",
         "You are responsible for the accuracy of recorded information and permission to share it with the configured services.",
         "The current MVP has no paid subscription or payment processing.",
         "The deployment owner must supply final terms, service commitments and legal contact details before commercial launch.",

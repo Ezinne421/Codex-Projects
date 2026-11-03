@@ -61,7 +61,7 @@ export function AccountReadiness({ config, user }: { config: any; user: any }) {
               onClick={() => {
                 const blob = new Blob(
                     [
-                      `ProjectManager Africa recovery codes\nAccount: ${user.email}\nGenerated: ${new Date().toISOString()}\nEach code expires in one year. Keep private.\n\n` +
+                      `Next Mile recovery codes\nAccount: ${user.email}\nGenerated: ${new Date().toISOString()}\nEach code expires in one year. Keep private.\n\n` +
                         codes.join("\n"),
                     ],
                     { type: "text/plain" },
@@ -69,7 +69,7 @@ export function AccountReadiness({ config, user }: { config: any; user: any }) {
                   url = URL.createObjectURL(blob),
                   a = document.createElement("a");
                 a.href = url;
-                a.download = "projectmanager-recovery-codes.txt";
+                a.download = "next-mile-recovery-codes.txt";
                 a.click();
                 setTimeout(() => URL.revokeObjectURL(url), 10000);
               }}

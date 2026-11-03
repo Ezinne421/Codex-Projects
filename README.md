@@ -1,4 +1,4 @@
-# ProjectManager AI Africa
+# Next Mile
 
 A professional project-management workspace: React + TypeScript + Tailwind, Express, SQLite for local development, and managed PostgreSQL for Vercel. Empty accounts start with real empty states. No sample project progress or financial metrics are seeded.
 
@@ -152,7 +152,6 @@ validation and calculator logic are in `shared/knowledge/practice.ts`. The same
 `src/LearningHub.tsx` runs in the hosted app and, bundled without external assets,
 in the standalone HTML. Source review notes are in `docs/knowledge-source-review.md`.
 
-
 #### Expanded practitioner glossary
 
 The additional 200 entries cover eight areas: advanced planning and schedule
@@ -175,7 +174,6 @@ Keep original summaries, model assumptions and illustrative examples together.
 Do not turn context-dependent contract or country requirements into universal
 rules. Use the relevant authoritative reference and actual governing framework
 for formal decisions. References are further reading, not attributed quotations.
-
 
 ### Professional workspace upgrade
 
@@ -203,3 +201,11 @@ is documented in [ASSETS](docs/ASSETS.md).
 Database changes are additive and versioned; tests preserve original records.
 CI checks SQLite, PostgreSQL semantics, build and browser workflows. See
 [Operations](docs/OPERATIONS.md) for deployment and real-world release boundaries.
+
+## Next Mile branding
+
+The application is now **Next Mile**, with the tagline **Turn plans into progress**.
+The existing Vercel address and legacy standalone filenames remain available.
+Account records, authentication, workspace IDs, offline storage keys, learning
+progress and theme preferences keep their existing identifiers, so this rename
+does not reset saved data or invalidate older backups.
