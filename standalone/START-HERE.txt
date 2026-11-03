@@ -53,3 +53,8 @@ This edition uses the new editorial identity with embedded, licensed fonts.
 Team invitations, access roles, schedule baselines, document approvals and
 account-synced learning require the hosted application. This local file does not
 simulate shared online access or send invitations. Keep regular local backups.
+
+COLOUR THEMES
+Use Theme in the header to choose Signature Plum, Forest & Sand, Atlantic Blue,
+Midnight, or Follow device. Your choice is saved in this browser. It applies to
+your workspace and the knowledge centre; print exports use a light palette.

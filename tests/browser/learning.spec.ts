@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import { resolve } from "node:path";
 import { learningLessons } from "../../shared/knowledge/learning";
 for (const edition of ["hosted", "offline"])

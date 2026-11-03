@@ -1,3 +1,4 @@
+import ThemeSwitcher from "./ThemeSwitcher";
 import PublicHome from "./PublicHome";
 import {
   TeamWorkspace,
@@ -55,6 +56,7 @@ const FinanceChart = lazy(() => import("./FinanceChart"));
 import { api, today, money, type Bundle, type Project } from "./api";
 import "./styles.css";
 import "./premium.css";
+import "./themes.css";
 import Templates from "./Templates";
 import { documentTypes } from "../shared/templates";
 const industries = [
@@ -773,6 +775,7 @@ function App() {
               ))}
             </nav>
             <div className="button-group">
+              <ThemeSwitcher />
               <button
                 className="button quiet"
                 onClick={() => setAuthMode("login")}
@@ -918,6 +921,7 @@ function App() {
                 <strong>{active ? active.project.title : view}</strong>
               </div>
               <div className="header-right">
+                <ThemeSwitcher />
                 <span className="local-date">
                   {new Intl.DateTimeFormat("en-NG", {
                     day: "numeric",
@@ -2078,6 +2082,16 @@ function App() {
                     >
                       <LogOut size={16} /> Sign out
                     </button>
+                  </section>
+                  <section className="panel settings-appearance">
+                    <div>
+                      <h2>Appearance</h2>
+                      <p>
+                        Choose your colours, or follow your device’s light and
+                        dark setting. Saved in this browser.
+                      </p>
+                    </div>
+                    <ThemeSwitcher />
                   </section>
                   <AccountReadiness config={config} user={user} />
                 </>

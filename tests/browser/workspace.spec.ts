@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./fixtures";
 async function register(page: Page, email: string, name: string) {
   const r = await page.request.post("/api/auth/register", {
     headers: { "X-Requested-With": "ProjectManager" },
@@ -281,7 +281,11 @@ test("authenticated learning sync survives a fresh browser context and recovery 
     expect(r.status()).toBe(200);
     const other = await context.newPage();
     await other.goto("/");
+    await expect(
+      other.getByRole("heading", { name: /Welcome back, Ife/ }),
+    ).toBeVisible();
     await other
+      .locator(".sidebar")
       .getByRole("button", { name: "Knowledge Centre", exact: true })
       .click();
     await expect(other.locator(".learning-progress")).toContainText("1/24");

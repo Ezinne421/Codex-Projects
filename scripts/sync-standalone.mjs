@@ -96,7 +96,9 @@ const premium = readFileSync("src/premium.css", "utf8").replace(
 const premiumBlock =
   '<style id="premium-inline">' +
   premium +
-  "\nheader .symbol{background:#42295e;color:#dbed84;border-radius:0}.brand small{color:#7c688a}header{background:#fcfbf7}\n</style>";
+  "\nheader .symbol{background:var(--brand);color:var(--citrus);border-radius:0}.brand small{color:var(--muted)}header{background:var(--surface-raised)}\n" +
+  readFileSync("src/themes.css", "utf8") +
+  "\n</style>";
 if (html.includes('<style id="premium-inline">'))
   html = html.replace(
     /<style id="premium-inline">[\s\S]*?<\/style>/,
@@ -118,4 +120,35 @@ if (html.includes('<script id="embedded-font-licenses"'))
     () => licenses,
   );
 else html = html.replace("</body>", () => licenses + "\n</body>");
+const themeInit =
+  '<script id="theme-init">' +
+  readFileSync("public/assets/theme-init.js", "utf8").replace(
+    /<\/script/gi,
+    "<\\/script",
+  ) +
+  "</script>";
+html = html.replace(/<script id="theme-init">[\s\S]*?<\/script>/, "");
+html = html.replace(
+  /<meta name="theme-color"[^>]*>/,
+  (meta) => meta + themeInit,
+);
+const themeBundle = await build({
+  entryPoints: ["src/offline-theme.ts"],
+  bundle: true,
+  write: false,
+  format: "iife",
+  platform: "browser",
+  target: "es2020",
+  minify: true,
+});
+const offlineTheme =
+  '<script id="offline-theme">' +
+  themeBundle.outputFiles[0].text.replace(/<\/script/gi, "<\\/script") +
+  "</script>";
+if (html.includes('<script id="offline-theme">'))
+  html = html.replace(
+    /<script id="offline-theme">[\s\S]*?<\/script>/,
+    () => offlineTheme,
+  );
+else html = html.replace("</body>", () => offlineTheme + "\n</body>");
 writeFileSync(path, html);

@@ -5,7 +5,9 @@ import { authDb } from "./db.js";
 export function createDatabaseRateLimitStore(
   prefix: string,
   windowMs: number,
-  enabled = !!process.env.DATABASE_URL || process.env.DB_TEST_PGLITE === "1",
+  enabled = process.env.NODE_ENV === "test" ||
+    !!process.env.DATABASE_URL ||
+    process.env.DB_TEST_PGLITE === "1",
 ): Store | undefined {
   if (!enabled) return undefined;
   const bucket = () => Math.floor(Date.now() / windowMs);

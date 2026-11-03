@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import { resolve } from "node:path";
 test("full app: visible library, blank export, project generation, edited save and Word export", async ({
   page,

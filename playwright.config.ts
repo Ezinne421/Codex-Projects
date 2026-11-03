@@ -18,7 +18,7 @@ export default defineConfig({
   },
   webServer: {
     command:
-      "PORT=3100 APP_URL=http://127.0.0.1:3100 DATA_DIR=/tmp/pm-browser-test npm run dev",
+      "NODE_ENV=test PORT=3100 APP_URL=http://127.0.0.1:3100 DATA_DIR=/tmp/pm-browser-test npm run dev",
     url: "http://127.0.0.1:3100/api/health",
     reuseExistingServer: false,
   },
