@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { api } from "./api";
+import { useEffect, useMemo, useState, useRef } from "react";
 import {
   learningLessons,
   learningPaths,
@@ -20,6 +21,8 @@ import {
 export type LearningSection = "learn" | "tools" | "updates";
 type Props = {
   section: LearningSection;
+  serverSync?: boolean;
+  onApplyLearning?: (lessonId: string) => void;
   storageKey: string;
   terms: { id: string; name: string }[];
   onOpenTerm: (id: string) => void;
@@ -43,10 +46,12 @@ function LessonQuiz({
   lesson,
   progress,
   onGrade,
+  accountSynced = false,
 }: {
   lesson: LearningLesson;
   progress?: LearningProgress[string];
   onGrade: (score: number) => void;
+  accountSynced?: boolean;
 }) {
   const [answers, setAnswers] = useState<Record<number, number>>({}),
     [graded, setGraded] = useState(false);
@@ -102,7 +107,7 @@ function LessonQuiz({
           </strong>
           <p>
             {progress
-              ? `Next review: ${dateLabel(progress.due)}. Progress is saved only in this browser.`
+              ? `Next review: ${dateLabel(progress.due)}. ${accountSynced ? "Account sync status is shown above." : "Progress is saved only in this browser."}`
               : "Your result could not be saved in this browser."}
           </p>
           <button
@@ -235,8 +240,117 @@ export default function LearningHub({
   terms,
   onOpenTerm,
   onSectionChange,
+  serverSync = false,
+  onApplyLearning,
 }: Props) {
   const key = storageKey + "-learning-v1";
+  type Attempt = {
+    lessonId: string;
+    correct: number;
+    total: number;
+    day: string;
+  };
+  const pending = useRef<Attempt[]>([]),
+    syncing = useRef(false),
+    loadedAccount = useRef(false);
+  const [syncNotice, setSyncNotice] = useState("");
+  async function syncProgress() {
+    if (!serverSync || syncing.current) return;
+    syncing.current = true;
+    try {
+      let remote = await api("/learning");
+      if (storageKey !== "pma-knowledge-saved-" + remote.userId)
+        throw new Error("Account changed.");
+      if (!loadedAccount.current) {
+        let cached: Attempt[] = [];
+        try {
+          const raw = JSON.parse(
+            localStorage.getItem(key + "-pending") || "[]",
+          );
+          if (Array.isArray(raw))
+            cached = raw.filter(
+              (a: any) =>
+                a &&
+                learningLessons.some((l) => l.id === a.lessonId) &&
+                typeof a.day === "string" &&
+                Number.isInteger(a.correct) &&
+                Number.isInteger(a.total),
+            );
+        } catch {}
+        pending.current = [
+          ...new Map(
+            [...cached, ...pending.current].map((a) => [
+              `${a.lessonId}:${a.day}:${a.correct}:${a.total}`,
+              a,
+            ]),
+          ).values(),
+        ];
+        if (!remote.version && !pending.current.length) {
+          const local = loadProgress(key);
+          pending.current = Object.entries(local)
+            .map(([lessonId, p]) => ({
+              lessonId,
+              correct: p.correct,
+              total: p.total,
+              day: p.lastReviewed,
+            }))
+            .sort((a, b) => a.day.localeCompare(b.day));
+        }
+        loadedAccount.current = true;
+      }
+      while (pending.current.length) {
+        const attempt = pending.current[0],
+          stored = remote.progress[attempt.lessonId];
+        if (stored?.lastReviewed > attempt.day) {
+          pending.current.shift();
+          continue;
+        }
+        try {
+          remote = await api("/learning/" + attempt.lessonId, "PUT", {
+            correct: attempt.correct,
+            total: attempt.total,
+            day: attempt.day,
+            version: remote.version,
+            expected_user_id: remote.userId,
+          });
+          pending.current.shift();
+        } catch (e) {
+          if ((e as Error).message.includes("changed")) {
+            remote = await api("/learning");
+            continue;
+          }
+          throw e;
+        }
+        try {
+          localStorage.setItem(
+            key + "-pending",
+            JSON.stringify(pending.current),
+          );
+        } catch {}
+      }
+      setProgress(remote.progress);
+      try {
+        localStorage.setItem(key, JSON.stringify(remote.progress));
+        localStorage.removeItem(key + "-pending");
+      } catch {}
+      setSyncNotice("Learning progress is saved to your account.");
+    } catch {
+      setSyncNotice(
+        "Account sync is pending. Keep this device copy and retry when connected.",
+      );
+    } finally {
+      syncing.current = false;
+    }
+  }
+  useEffect(() => {
+    loadedAccount.current = false;
+    pending.current = [];
+    syncProgress();
+    const online = () => syncProgress();
+    window.addEventListener("online", online);
+    return () => window.removeEventListener("online", online);
+  }, [key, serverSync]);
+
   const [progress, setProgress] = useState<LearningProgress>(() =>
       loadProgress(key),
     ),
@@ -277,16 +391,30 @@ export default function LearningHub({
         ),
     [path, query, level, reviewOnly, progress, today],
   );
-  function save(next: LearningProgress) {
+  function save(
+    next: LearningProgress,
+    attempt?: { lessonId: string; correct: number; total: number; day: string },
+  ) {
+    if (serverSync && attempt) {
+      pending.current.push(attempt);
+      try {
+        localStorage.setItem(key + "-pending", JSON.stringify(pending.current));
+      } catch {}
+      setSyncNotice("Saved on this device; syncing to your account…");
+    }
     try {
       localStorage.setItem(key, JSON.stringify(next));
       setProgress(next);
       setNotice("");
     } catch {
+      setProgress(next);
       setNotice(
-        "Browser storage is unavailable. You can still study, but this result has not been saved.",
+        serverSync
+          ? "Device storage is unavailable; checking account sync."
+          : "Browser storage is unavailable. You can still study, but this result has not been saved.",
       );
     }
+    if (serverSync && attempt) syncProgress();
   }
   const openLesson = (id: string) => {
     setLessonId(id);
@@ -360,6 +488,14 @@ export default function LearningHub({
   }
   return (
     <section className="learning-hub">
+      {serverSync && (
+        <p className="learning-sync-status" role="status">
+          <span>{syncNotice || "Loading account progress…"}</span>{" "}
+          <button className="text-link" onClick={syncProgress}>
+            Sync now
+          </button>
+        </p>
+      )}
       {notice && (
         <p className="learning-feedback" role="alert">
           {notice}
@@ -397,8 +533,10 @@ export default function LearningHub({
           </strong>
           <p>
             Pass a lesson, apply one idea and review again after 1, 3, 7, 14 and
-            30 days. Retakes on the same day do not accelerate the interval.
-            Progress stays in this browser.
+            30 days. Retakes on the same day do not accelerate the interval.{" "}
+            {serverSync
+              ? "Progress syncs to your account when connected."
+              : "Progress stays in this browser."}
           </p>
         </div>
         {due.length > 0 && (
@@ -497,6 +635,7 @@ export default function LearningHub({
           </section>
           <LessonQuiz
             key={selected.id}
+            accountSynced={serverSync}
             lesson={selected}
             progress={progress[selected.id]}
             onGrade={(score) =>
@@ -508,11 +647,25 @@ export default function LearningHub({
                   selected.questions.length,
                   today,
                 ),
+                {
+                  lessonId: selected.id,
+                  correct: score,
+                  total: selected.questions.length,
+                  day: today,
+                },
               )
             }
           />
           {progress[selected.id]?.passed && (
             <div className="learning-next">
+              {onApplyLearning && (
+                <button
+                  className="button primary"
+                  onClick={() => onApplyLearning(selected.id)}
+                >
+                  Apply this learning with a project template →
+                </button>
+              )}
               <p>Practice passed. Try the application task before moving on.</p>
               <button
                 className="button secondary"

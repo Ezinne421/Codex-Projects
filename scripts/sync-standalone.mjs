@@ -86,4 +86,36 @@ if (html.includes('<style id="knowledge-styles">'))
     () => styles,
   );
 else html = html.replace("</head>", () => styles + "\n</head>");
+const premium = readFileSync("src/premium.css", "utf8").replace(
+  /url\(["']?\/assets\/fonts\/([^"')]+)["']?\)/g,
+  (_, name) =>
+    'url("data:font/woff2;base64,' +
+    readFileSync("public/assets/fonts/" + name).toString("base64") +
+    '")',
+);
+const premiumBlock =
+  '<style id="premium-inline">' +
+  premium +
+  "\nheader .symbol{background:#42295e;color:#dbed84;border-radius:0}.brand small{color:#7c688a}header{background:#fcfbf7}\n</style>";
+if (html.includes('<style id="premium-inline">'))
+  html = html.replace(
+    /<style id="premium-inline">[\s\S]*?<\/style>/,
+    () => premiumBlock,
+  );
+else html = html.replace("</head>", () => premiumBlock + "\n</head>");
+const licenses =
+  '<script id="embedded-font-licenses" type="text/plain">\n' +
+  ["Manrope-OFL.txt", "Newsreader-OFL.txt"]
+    .map((f) =>
+      readFileSync("public/assets/fonts/" + f, "utf8").replace(/[ \t]+$/gm, ""),
+    )
+    .join("\n\n")
+    .replace(/<\/script/gi, "<\\/script") +
+  "\n</script>";
+if (html.includes('<script id="embedded-font-licenses"'))
+  html = html.replace(
+    /<script id="embedded-font-licenses"[\s\S]*?<\/script>/,
+    () => licenses,
+  );
+else html = html.replace("</body>", () => licenses + "\n</body>");
 writeFileSync(path, html);

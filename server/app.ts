@@ -1,3 +1,16 @@
+import { registerScheduleRoutes } from "./schedule.js";
+import {
+  sessionUser,
+  accessibleProject,
+  permission,
+  registerWorkspaceRoutes,
+  logActivity,
+  projectAssignee,
+  notifyMember,
+  saveDocument,
+  documentSnapshot,
+  fail,
+} from "./workspace.js";
 import { pdfFont } from "./pdf-font.js";
 import express, {
   type Request,
@@ -32,6 +45,7 @@ type User = {
   country: string;
   currency: string;
   industry: string;
+  role: "owner" | "admin" | "member" | "viewer";
 };
 declare global {
   namespace Express {
@@ -121,14 +135,7 @@ async function session(res: Response, userId: string) {
 }
 async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const token = req.cookies.pm_session;
-  const user =
-    typeof token === "string"
-      ? ((await authDb
-          .prepare(
-            "SELECT u.id,u.email,u.name,u.org_id,u.country,u.currency,u.industry FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token_hash=? AND s.expires_at>?",
-          )
-          .get(hash(token), Date.now())) as User | undefined)
-      : undefined;
+  const user = typeof token === "string" ? await sessionUser(token) : undefined;
   if (!user)
     return res.status(401).json({ error: "Please sign in to continue" });
   (req as Authed).user = user;
@@ -149,14 +156,10 @@ async function tenant(req: Request, res: Response, next: NextFunction) {
   next();
 }
 async function audit(req: Authed, action: string, id: string) {
-  await req.db
-    .prepare("INSERT INTO audit_logs(actor,action,record_id) VALUES(?,?,?)")
-    .run(req.user.id, action, id);
+  await logActivity(req, action, id);
 }
 async function project(req: Authed, id: string) {
-  const p = await req.db.prepare("SELECT * FROM projects WHERE id=?").get(id);
-  if (!p) throw Object.assign(new Error("Project not found"), { status: 404 });
-  return p;
+  return accessibleProject(req, id);
 }
 async function bundle(req: Authed, id: string) {
   const p = await project(req, id);
@@ -168,6 +171,17 @@ async function bundle(req: Authed, id: string) {
       )
       .all(id);
   }
+  const access = await permission(req, id);
+  data.permissions = {
+    canEdit: access.canEdit,
+    canManage: access.canManage,
+    role: access.role,
+  };
+  data.dependencies = await req.db
+    .prepare(
+      "SELECT d.* FROM task_dependencies d JOIN tasks t ON t.id=d.task_id WHERE t.project_id=?",
+    )
+    .all(id);
   data.finance = financials(
     data.budget_items,
     data.expenses,
@@ -214,6 +228,9 @@ app.post("/api/auth/register", async (req, res) => {
         p.currency,
         p.industry,
       );
+    await authDb
+      .prepare("INSERT INTO memberships(org_id,user_id,role) VALUES(?,?,?)")
+      .run(org, userId, "owner");
     await authDb.exec("COMMIT");
   } catch (e) {
     await authDb.exec("ROLLBACK");
@@ -244,6 +261,76 @@ app.post("/api/auth/login", async (req, res) => {
   await session(res, user.id as string);
   res.json({ ok: true });
 });
+app.post("/api/auth/recovery-codes", requireAuth, async (req, res) => {
+  const { password } = z
+    .object({ password: z.string().min(1).max(128) })
+    .parse(req.body);
+  const user = await authDb
+    .prepare("SELECT password_hash FROM users WHERE id=?")
+    .get(req.user.id);
+  if (!user || !verify(password, user.password_hash))
+    fail(403, "Your current password is incorrect.");
+  const codes = Array.from({ length: 8 }, () =>
+    randomBytes(16).toString("hex"),
+  );
+  await authDb.exec("BEGIN");
+  try {
+    await authDb
+      .prepare("DELETE FROM recovery_codes WHERE user_id=?")
+      .run(req.user.id);
+    for (const code of codes)
+      await authDb
+        .prepare(
+          "INSERT INTO recovery_codes(user_id,code_hash,expires_at) VALUES(?,?,?)",
+        )
+        .run(req.user.id, hash(code), Date.now() + 365 * 86400000);
+    await authDb.exec("COMMIT");
+  } catch (e) {
+    await authDb.exec("ROLLBACK");
+    throw e;
+  }
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ codes, expiresInDays: 365 });
+});
+app.post("/api/auth/recover-code", async (req, res) => {
+  const p = z
+    .object({
+      email: z.email().transform((s) => s.toLowerCase()),
+      code: z.string().regex(/^[a-f0-9]{32}$/),
+      password: z.string().min(12).max(128),
+    })
+    .parse(req.body);
+  const user = await authDb
+    .prepare("SELECT id FROM users WHERE email=?")
+    .get(p.email);
+  if (!user) fail(400, "The email or recovery code is invalid or expired.");
+  const encoded = passwordHash(p.password);
+  await authDb.exec("BEGIN");
+  try {
+    const changed = await authDb
+      .prepare(
+        "UPDATE recovery_codes SET used_at=CURRENT_TIMESTAMP WHERE user_id=? AND code_hash=? AND used_at IS NULL AND expires_at>?",
+      )
+      .run(user.id, hash(p.code), Date.now());
+    if (changed.changes !== 1)
+      fail(400, "The email or recovery code is invalid or expired.");
+    await authDb
+      .prepare("UPDATE users SET password_hash=? WHERE id=?")
+      .run(encoded, user.id);
+    await authDb.prepare("DELETE FROM sessions WHERE user_id=?").run(user.id);
+    await authDb
+      .prepare("DELETE FROM reset_tokens WHERE user_id=?")
+      .run(user.id);
+    await authDb
+      .prepare("DELETE FROM recovery_codes WHERE user_id=?")
+      .run(user.id);
+    await authDb.exec("COMMIT");
+    res.json({ ok: true });
+  } catch (e) {
+    await authDb.exec("ROLLBACK");
+    throw e;
+  }
+});
 app.post("/api/auth/logout", async (req, res) => {
   if (req.cookies.pm_session)
     await authDb
@@ -256,6 +343,8 @@ app.get("/api/config", (_req, res) =>
   res.json({
     aiConfigured: !!process.env.AI_API_KEY,
     recoveryConfigured: smtpReady(),
+    recoveryCodesAvailable: true,
+    supportEmail: process.env.SUPPORT_EMAIL || null,
   }),
 );
 app.post("/api/auth/forgot", async (req, res) => {
@@ -355,18 +444,25 @@ app.get("/api/me", requireAuth, async (req, res) => {
     )?.name,
   });
 });
+registerWorkspaceRoutes(app, requireAuth, tenant, applicationUrl);
+registerScheduleRoutes(app, requireAuth, tenant);
 app.use("/api/projects", requireAuth, tenant);
 app.get("/api/projects", async (req, res) => {
   const r = req as Authed;
   const records = await r.db
-    .prepare("SELECT * FROM projects ORDER BY created_at DESC,id")
-    .all();
+    .prepare(
+      ["owner", "admin"].includes(r.user.role)
+        ? "SELECT * FROM projects ORDER BY created_at DESC,id"
+        : "SELECT p.* FROM projects p JOIN project_members m ON m.project_id=p.id WHERE m.user_id=? ORDER BY p.created_at DESC,p.id",
+    )
+    .all(...(["owner", "admin"].includes(r.user.role) ? [] : [r.user.id]));
   const results = [];
   for (const row of records) results.push(await bundle(r, row.id));
   res.json(results);
 });
 app.post("/api/projects", async (req, res) => {
   const r = req as Authed;
+  if (r.user.role === "viewer") fail(403, "Viewers cannot create projects.");
   const p = projectSchema.parse(req.body);
   const id = randomUUID();
   const keys = Object.keys(p);
@@ -375,6 +471,11 @@ app.post("/api/projects", async (req, res) => {
       `INSERT INTO projects(id,${keys.join(",")}) VALUES(?,${keys.map(() => "?").join(",")})`,
     )
     .run(id, ...Object.values(p));
+  await r.db
+    .prepare(
+      "INSERT INTO project_members(project_id,user_id,role) VALUES(?,?,?)",
+    )
+    .run(id, r.user.id, "manager");
   await audit(r, "project.created", id);
   res.status(201).json(await bundle(r, id));
 });
@@ -390,7 +491,7 @@ app.put("/api/projects/:id", async (req, res) => {
     .prepare(
       `UPDATE projects SET ${Object.keys(p)
         .map((k) => `${k}=?`)
-        .join(",")} WHERE id=?`,
+        .join(",")},revision=revision+1 WHERE id=?`,
     )
     .run(...Object.values(p), id);
   await audit(r, "project.updated", id);
@@ -398,7 +499,7 @@ app.put("/api/projects/:id", async (req, res) => {
 });
 app.delete("/api/projects/:id", async (req, res) => {
   const r = req as Authed;
-  await project(r, req.params.id as string);
+  await accessibleProject(r, req.params.id as string, "manage");
   await r.db
     .prepare("DELETE FROM projects WHERE id=?")
     .run(req.params.id as string);
@@ -411,6 +512,8 @@ app.post("/api/projects/:id/duplicate", async (req, res) => {
   const id = randomUUID();
   const { id: _, created_at, ...values } = original;
   values.title = String(values.title).slice(0, 190) + " (copy)";
+  values.revision = 0;
+  const taskCopies = new Map<string, string>();
   await r.db.exec("BEGIN");
   try {
     await r.db
@@ -427,6 +530,20 @@ app.post("/api/projects/:id/duplicate", async (req, res) => {
         .prepare(`SELECT * FROM ${resource} WHERE project_id=?`)
         .all(req.params.id as string)) {
         const { id: old, created_at: time, project_id, ...rest } = row;
+        if (resource === "tasks") {
+          rest.status = "To do";
+          rest.progress = 0;
+          rest.assignee_id = null;
+        }
+        if (resource === "documents") {
+          rest.revision = 1;
+          rest.approval_status = "draft";
+          rest.approved_by = null;
+          rest.approved_at = null;
+          rest.last_editor = r.user.id;
+        }
+        const copyId = randomUUID();
+        if (resource === "tasks") taskCopies.set(old, copyId);
         await r.db
           .prepare(
             `INSERT INTO ${resource}(id,project_id,${Object.keys(rest).join(",")}) VALUES(?,?,${Object.keys(
@@ -435,7 +552,26 @@ app.post("/api/projects/:id/duplicate", async (req, res) => {
               .map(() => "?")
               .join(",")})`,
           )
-          .run(randomUUID(), id, ...Object.values(rest));
+          .run(copyId, id, ...Object.values(rest));
+        if (resource === "documents") await documentSnapshot(r, copyId);
+      }
+    }
+    await r.db
+      .prepare(
+        "INSERT INTO project_members(project_id,user_id,role) VALUES(?,?,?)",
+      )
+      .run(id, r.user.id, "manager");
+    for (const [old, newId] of taskCopies) {
+      for (const d of await r.db
+        .prepare("SELECT * FROM task_dependencies WHERE task_id=?")
+        .all(old)) {
+        const copiedPredecessor = taskCopies.get(d.predecessor_id);
+        if (copiedPredecessor)
+          await r.db
+            .prepare(
+              "INSERT INTO task_dependencies(task_id,predecessor_id,relationship,lag_days) VALUES(?,?,?,?)",
+            )
+            .run(newId, copiedPredecessor, d.relationship, d.lag_days);
       }
     }
     await r.db.exec("COMMIT");
@@ -519,6 +655,13 @@ app.post(
         return res
           .status(401)
           .json({ error: "Your session expired. Please sign in again." });
+      const fresh = await sessionUser(req.cookies.pm_session || "");
+      if (!fresh || fresh.org_id !== r.user.org_id)
+        fail(
+          409,
+          "Your workspace access changed during generation. Refresh and retry.",
+        );
+      r.user = fresh;
       await project(r, id);
       const documentId = randomUUID();
       const type =
@@ -539,6 +682,10 @@ app.post(
           content,
           "AI draft — review required",
         );
+      await r.db
+        .prepare("UPDATE documents SET last_editor=? WHERE id=?")
+        .run(r.user.id, documentId);
+      await documentSnapshot(r, documentId);
       await r.db
         .prepare(
           "INSERT INTO ai_history(id,project_id,model,source_refs) VALUES(?,?,?,?)",
@@ -695,10 +842,37 @@ app.all("/api/projects/:id/:resource{/:childId}", async (req, res) => {
   )
     return res.status(404).json({ error: "Record not found" });
   if (req.method === "DELETE" && childId) {
-    await r.db
-      .prepare(`DELETE FROM ${resource} WHERE id=? AND project_id=?`)
-      .run(childId, id);
-    await audit(r, `${resource}.deleted`, childId);
+    if (resource === "documents") {
+      await accessibleProject(r, id, "manage");
+      if (
+        await r.db
+          .prepare(
+            "SELECT id FROM document_versions WHERE document_id=? AND approval_status='approved'",
+          )
+          .get(childId)
+      )
+        fail(
+          409,
+          "Documents with recorded approvals must be retained as controlled records.",
+        );
+    }
+    await r.db.exec("BEGIN");
+    try {
+      await r.db
+        .prepare("UPDATE projects SET revision=revision+1 WHERE id=?")
+        .run(id);
+      const before = await r.db
+        .prepare(`SELECT * FROM ${resource} WHERE id=? AND project_id=?`)
+        .get(childId, id);
+      await r.db
+        .prepare(`DELETE FROM ${resource} WHERE id=? AND project_id=?`)
+        .run(childId, id);
+      await logActivity(r, `${resource}.deleted`, childId, id, { before });
+      await r.db.exec("COMMIT");
+    } catch (e) {
+      await r.db.exec("ROLLBACK");
+      throw e;
+    }
     return res.json({ ok: true });
   }
   if (
@@ -717,29 +891,83 @@ app.all("/api/projects/:id/:resource{/:childId}", async (req, res) => {
         .status(400)
         .json({ error: "Budget item does not belong to this project" });
     const key = childId || randomUUID();
-    const keys = Object.keys(p);
-    if (childId)
-      await r.db
-        .prepare(
-          `UPDATE ${resource} SET ${keys.map((k) => `${k}=?`).join(",")}${resource === "documents" ? ",updated_at=CURRENT_TIMESTAMP" : ""} WHERE id=? AND project_id=?`,
-        )
-        .run(...Object.values(p), key, id);
-    else {
-      const values = {
-        ...p,
-        ...(resource === "documents" ? { source: "Manual draft" } : {}),
-      };
-      await r.db
-        .prepare(
-          `INSERT INTO ${resource}(id,project_id,${Object.keys(values).join(",")}) VALUES(?,?,${Object.keys(
-            values,
-          )
-            .map(() => "?")
-            .join(",")})`,
-        )
-        .run(key, id, ...Object.values(values));
+    if (resource === "documents") {
+      const old = childId
+        ? await r.db
+            .prepare("SELECT * FROM documents WHERE id=? AND project_id=?")
+            .get(key, id)
+        : null;
+      await saveDocument(r, key, id, p, old);
+      return res.status(childId ? 200 : 201).json({ id: key });
     }
-    await audit(r, `${resource}.${childId ? "updated" : "created"}`, key);
+    if (resource === "tasks" && p.assignee_id) {
+      await projectAssignee(r, id, p.assignee_id);
+      const assigned = await authDb
+        .prepare("SELECT name FROM users WHERE id=?")
+        .get(p.assignee_id);
+      p.owner = assigned?.name || p.owner;
+    }
+    const previous =
+      resource === "tasks" && childId
+        ? await r.db
+            .prepare("SELECT assignee_id FROM tasks WHERE id=?")
+            .get(key)
+        : null;
+    const keys = Object.keys(p);
+    await r.db.exec("BEGIN");
+    try {
+      await r.db
+        .prepare("UPDATE projects SET revision=revision+1 WHERE id=?")
+        .run(id);
+      const before = childId
+        ? await r.db
+            .prepare(`SELECT * FROM ${resource} WHERE id=? AND project_id=?`)
+            .get(key, id)
+        : null;
+      if (childId)
+        await r.db
+          .prepare(
+            `UPDATE ${resource} SET ${keys.map((k) => `${k}=?`).join(",")} WHERE id=? AND project_id=?`,
+          )
+          .run(...Object.values(p), key, id);
+      else {
+        const values = {
+          ...p,
+        };
+        await r.db
+          .prepare(
+            `INSERT INTO ${resource}(id,project_id,${Object.keys(values).join(",")}) VALUES(?,?,${Object.keys(
+              values,
+            )
+              .map(() => "?")
+              .join(",")})`,
+          )
+          .run(key, id, ...Object.values(values));
+      }
+      if (
+        resource === "tasks" &&
+        p.assignee_id &&
+        p.assignee_id !== previous?.assignee_id
+      )
+        await notifyMember(
+          r,
+          p.assignee_id,
+          id,
+          `You were assigned: ${p.title}`,
+          "assignment",
+        );
+      await logActivity(
+        r,
+        `${resource}.${childId ? "updated" : "created"}`,
+        key,
+        id,
+        { before, after: p },
+      );
+      await r.db.exec("COMMIT");
+    } catch (e) {
+      await r.db.exec("ROLLBACK");
+      throw e;
+    }
     return res.status(childId ? 200 : 201).json({ id: key });
   }
   res.status(405).json({ error: "Method not supported" });
@@ -755,8 +983,12 @@ app.use((error: any, _req: Request, res: Response, _next: NextFunction) => {
         .map((i) => `${i.path.join(".") || "Input"}: ${i.message}`)
         .join("; "),
     });
-  if (error.status === 404)
-    return res.status(404).json({ error: error.message });
+  if (
+    Number.isInteger(error.status) &&
+    error.status >= 400 &&
+    error.status < 500
+  )
+    return res.status(error.status).json({ error: error.message });
   if (error.type === "entity.parse.failed")
     return res.status(400).json({ error: "Invalid JSON" });
   if (error.type === "entity.too.large")

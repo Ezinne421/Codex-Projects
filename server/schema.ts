@@ -25,3 +25,21 @@ CREATE INDEX IF NOT EXISTS risks_project ON risks(project_id);
 CREATE INDEX IF NOT EXISTS updates_project ON updates(project_id,date);
 CREATE INDEX IF NOT EXISTS documents_project ON documents(project_id);
 `;
+export const sharedMigrationSchema = `CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY,applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);`;
+export const workspaceAuthSchema = `
+CREATE TABLE IF NOT EXISTS memberships(org_id TEXT NOT NULL REFERENCES organisations(id),user_id TEXT NOT NULL REFERENCES users(id),role TEXT NOT NULL CHECK(role IN ('owner','admin','member','viewer')),weekly_capacity REAL NOT NULL DEFAULT 40,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(org_id,user_id));
+CREATE TABLE IF NOT EXISTS invitations(id TEXT PRIMARY KEY,org_id TEXT NOT NULL REFERENCES organisations(id),email TEXT NOT NULL,role TEXT NOT NULL CHECK(role IN ('admin','member','viewer')),token_hash TEXT NOT NULL UNIQUE,created_by TEXT NOT NULL,expires_at INTEGER NOT NULL,status TEXT NOT NULL DEFAULT 'pending',created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS session_workspaces(token_hash TEXT PRIMARY KEY REFERENCES sessions(token_hash) ON DELETE CASCADE,org_id TEXT NOT NULL REFERENCES organisations(id));
+CREATE TABLE IF NOT EXISTS recovery_codes(user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,code_hash TEXT NOT NULL,expires_at INTEGER NOT NULL,used_at TEXT,PRIMARY KEY(user_id,code_hash));
+CREATE TABLE IF NOT EXISTS learning_progress(user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,state TEXT NOT NULL,version INTEGER NOT NULL DEFAULT 1,updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+`;
+export const workspaceTenantSchema = `
+CREATE TABLE IF NOT EXISTS project_members(project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,user_id TEXT NOT NULL,role TEXT NOT NULL CHECK(role IN ('manager','editor','viewer')),PRIMARY KEY(project_id,user_id));
+CREATE TABLE IF NOT EXISTS task_dependencies(task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,predecessor_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,relationship TEXT NOT NULL DEFAULT 'FS',lag_days INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(task_id,predecessor_id));
+CREATE TABLE IF NOT EXISTS project_baselines(id TEXT PRIMARY KEY,project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,title TEXT NOT NULL,record_json TEXT NOT NULL,created_by TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS document_versions(id TEXT PRIMARY KEY,document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,revision INTEGER NOT NULL,title TEXT NOT NULL,type TEXT NOT NULL,content TEXT NOT NULL,source TEXT NOT NULL,actor TEXT NOT NULL,approval_status TEXT NOT NULL DEFAULT 'draft',approved_by TEXT,approved_at TEXT,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,UNIQUE(document_id,revision));
+CREATE TABLE IF NOT EXISTS comments(id TEXT PRIMARY KEY,project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,entity_type TEXT NOT NULL DEFAULT 'project',entity_id TEXT,author_id TEXT NOT NULL,author_name TEXT NOT NULL,content TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS notifications(id TEXT PRIMARY KEY,user_id TEXT NOT NULL,project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,title TEXT NOT NULL,kind TEXT NOT NULL,read_at TEXT,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX IF NOT EXISTS notifications_user ON notifications(user_id,created_at);
+CREATE INDEX IF NOT EXISTS comments_project ON comments(project_id,created_at);
+`;

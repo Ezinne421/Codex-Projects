@@ -31,8 +31,12 @@ export type Project = {
   contingency: number;
   tax: number;
   created_at: string;
+  working_week: string;
+  revision: number;
 };
 export type Bundle = {
+  permissions: { canEdit: boolean; canManage: boolean; role: string };
+  dependencies: any[];
   project: Project;
   tasks: any[];
   budget_items: any[];

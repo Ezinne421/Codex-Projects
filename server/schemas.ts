@@ -16,6 +16,7 @@ export const projectSchema = z
     status: z.enum(["Active", "On hold", "Completed"]).default("Active"),
     contingency: z.number().min(0).max(100).default(0),
     tax: z.number().min(0).max(100).default(0),
+    working_week: z.enum(["1,2,3,4,5", "0,1,2,3,4,5,6"]).default("1,2,3,4,5"),
   })
   .refine((p) => p.end_date >= p.start_date, {
     message: "End date must follow start date",
@@ -29,6 +30,14 @@ export const schemas = {
       end_date: date,
       status: z.enum(["To do", "In progress", "Done"]),
       progress: z.number().int().min(0).max(100),
+      assignee_id: z.preprocess(
+        (v) => (v === "" ? null : v),
+        z.string().uuid().nullable().default(null),
+      ),
+      milestone: z.coerce.number().int().min(0).max(1).default(0),
+      weight: z.number().positive().max(10000).default(1),
+      effort_hours: z.number().min(0).max(100000).default(8),
+      fixed_start: z.coerce.number().int().min(0).max(1).default(0),
     })
     .refine((t) => t.end_date >= t.start_date, {
       message: "End date must follow start date",
@@ -36,7 +45,13 @@ export const schemas = {
     .refine((t) => (t.status === "Done") === (t.progress === 100), {
       message:
         "Done tasks must have 100% progress; unfinished tasks must be below 100%",
-    }),
+    })
+    .refine((t) => !t.milestone || t.progress === 0 || t.progress === 100, {
+      message: "Milestones are either incomplete (0%) or complete (100%).",
+    })
+    .transform((t) =>
+      t.milestone ? { ...t, end_date: t.start_date, effort_hours: 0 } : t,
+    ),
   budget_items: z
     .object({
       title: text,

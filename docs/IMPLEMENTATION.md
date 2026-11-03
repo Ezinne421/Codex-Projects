@@ -1,3 +1,13 @@
+# Current implementation
+
+The professional workspace release supersedes the historical Phase 1 boundaries
+below. It adds memberships/project roles, one-use invitation links, comments and
+notifications, dependency scheduling and baselines, document revisions/review,
+activity history, recovery kits, account-synced learning and a new editorial UI.
+See [Operations](OPERATIONS.md) for the current architecture and release limits.
+
+The following is historical planning context, not the current feature inventory.
+
 # Hosted deployment update
 
 The full app now supports managed PostgreSQL for Vercel in addition to the original SQLite development mode described below. `DATABASE_URL` selects PostgreSQL; Vercel requires it and will not use ephemeral local storage. HTTP requests lease independent database connections and transactions. Auth records and shared rate limits live in private `pm_ai_africa_auth` tables, with each organisation’s project records in a separate server-selected schema. See [Vercel deployment](VERCEL.md) for configuration and live validation still required. Existing local records are not automatically migrated.

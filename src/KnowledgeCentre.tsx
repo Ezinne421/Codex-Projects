@@ -36,8 +36,12 @@ function readSaved(key: string): string[] {
 }
 export default function KnowledgeCentre({
   storageKey = "pma-knowledge-saved-public",
+  syncAccount = false,
+  onApplyLearning,
 }: {
   storageKey?: string;
+  syncAccount?: boolean;
+  onApplyLearning?: (lessonId: string) => void;
 }) {
   const [section, setSection] = useState<LearningSection | "glossary">("learn");
   const [query, setQuery] = useState(""),
@@ -206,6 +210,8 @@ export default function KnowledgeCentre({
       {section !== "glossary" ? (
         <LearningHub
           section={section}
+          serverSync={syncAccount}
+          onApplyLearning={onApplyLearning}
           storageKey={storageKey}
           terms={knowledgeTerms}
           onOpenTerm={setSelectedId}

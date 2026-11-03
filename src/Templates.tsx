@@ -17,13 +17,19 @@ export default function Templates({
   fixedProject,
   onSaved,
   onCreateProject,
+  initialTemplateId = "plan",
 }: {
   projects: Bundle[];
+  initialTemplateId?: string;
   fixedProject?: Bundle;
   onSaved: (id: string) => Promise<void>;
   onCreateProject: () => void;
 }) {
-  const [templateId, setTemplateId] = useState("plan"),
+  const [templateId, setTemplateId] = useState(
+      templateCatalog.some((t) => t.id === initialTemplateId)
+        ? initialTemplateId
+        : "plan",
+    ),
     [projectId, setProjectId] = useState(fixedProject?.project.id || ""),
     [filter, setFilter] = useState("All"),
     [search, setSearch] = useState(""),
@@ -311,7 +317,13 @@ export default function Templates({
             <div className="button-group">
               <button
                 className="button primary"
-                disabled={!project || busy || saved || !draft.title.trim()}
+                disabled={
+                  !project ||
+                  project.permissions?.canEdit === false ||
+                  busy ||
+                  saved ||
+                  !draft.title.trim()
+                }
                 onClick={async () => {
                   if (!project) return;
                   setBusy(true);

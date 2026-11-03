@@ -1,3 +1,14 @@
+import PublicHome from "./PublicHome";
+import {
+  TeamWorkspace,
+  ProjectDiscussion,
+  ScheduleWorkspace,
+  DocumentReviews,
+  ProjectActivity,
+  Inbox,
+  AccountReadiness,
+} from "./WorkspaceTools";
+import { weightedProgress } from "../shared/scheduling";
 import React, { useEffect, useState, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -43,6 +54,7 @@ const KnowledgeCentre = lazy(() => import("./KnowledgeCentre"));
 const FinanceChart = lazy(() => import("./FinanceChart"));
 import { api, today, money, type Bundle, type Project } from "./api";
 import "./styles.css";
+import "./premium.css";
 import Templates from "./Templates";
 import { documentTypes } from "../shared/templates";
 const industries = [
@@ -65,12 +77,14 @@ const nav = [
   ["Reports & Documents", FileText],
   ["Templates", Layers],
   ["Knowledge Centre", BookOpen],
+  ["Team & access", Users],
+  ["Inbox", Bell],
 ] as const;
 type Field = {
   name: string;
   label: string;
   type?: string;
-  options?: string[];
+  options?: (string | { value: string; label: string })[];
   required?: boolean;
   min?: number;
   max?: number;
@@ -99,6 +113,14 @@ const projectFields: Field[] = [
     options: currencies,
     help: "Budgets remain in this currency. No exchange-rate assumptions.",
   },
+  {
+    name: "working_week",
+    label: "Working week",
+    options: [
+      { value: "1,2,3,4,5", label: "Monday to Friday" },
+      { value: "0,1,2,3,4,5,6", label: "Every day" },
+    ],
+  },
   { name: "start_date", label: "Start date", type: "date", required: true },
   { name: "end_date", label: "End date", type: "date", required: true },
   {
@@ -126,7 +148,12 @@ function Logo() {
   return (
     <span className="logo">
       <span className="logo-symbol">
-        <Layers size={22} />
+        <svg viewBox="0 0 36 42" width="27" height="32" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M5 34V8h8l9 10V8h9v26h-7V20l-5 6-7-9v17z"
+          />
+        </svg>
       </span>
       <span>
         ProjectManager
@@ -140,6 +167,8 @@ function Logo() {
 function App() {
   const [user, setUser] = useState<any>(null),
     [loading, setLoading] = useState(true),
+    [templateFocus, setTemplateFocus] = useState("plan"),
+    [unreadCount, setUnreadCount] = useState(0),
     [publicPage, setPublicPage] = useState("Home"),
     [authMode, setAuthMode] = useState(""),
     [view, setView] = useState("Dashboard"),
@@ -154,6 +183,7 @@ function App() {
       aiConfigured: false,
       recoveryConfigured: false,
     }),
+    [members, setMembers] = useState<any[]>([]),
     [busy, setBusy] = useState(false),
     [tab, setTab] = useState("Overview"),
     [currency, setCurrency] = useState("NGN");
@@ -164,11 +194,26 @@ function App() {
   const refresh = async () => {
     const p = await api("/projects");
     setProjects(p);
+    setMembers(await api("/workspace/members"));
   };
   async function load() {
     setLoading(true);
     try {
-      const u = await api("/me");
+      let u = await api("/me");
+      const invitation =
+        new URLSearchParams(location.hash.slice(1)).get("invite") ||
+        new URLSearchParams(location.search).get("invite");
+      if (invitation) {
+        try {
+          await api("/workspace/accept-invitation", "POST", {
+            token: invitation,
+          });
+          history.replaceState({}, "", location.pathname);
+          u = await api("/me");
+        } catch (e) {
+          setError((e as Error).message);
+        }
+      }
       setUser(u);
       setCurrency(u.currency);
       setView("Dashboard");
@@ -187,8 +232,32 @@ function App() {
     api("/config")
       .then(setConfig)
       .catch(() => {});
+    if (
+      new URLSearchParams(location.hash.slice(1)).has("invite") ||
+      new URLSearchParams(location.search).has("invite")
+    )
+      setAuthMode("login");
     if (new URLSearchParams(location.search).has("reset")) setAuthMode("reset");
   }, []);
+  useEffect(() => {
+    if (!user) {
+      setUnreadCount(0);
+      return;
+    }
+    let live = true;
+    const refreshInbox = () =>
+      api("/notifications")
+        .then((rows) => {
+          if (live) setUnreadCount(rows.filter((n: any) => !n.read_at).length);
+        })
+        .catch(() => {});
+    refreshInbox();
+    const interval = setInterval(refreshInbox, 60000);
+    return () => {
+      live = false;
+      clearInterval(interval);
+    };
+  }, [user?.id, user?.org_id]);
   const active = projects.find((p) => p.project.id === selected);
   const filtered = projects.filter((p) =>
     `${p.project.title} ${p.project.industry} ${p.project.location}`
@@ -217,9 +286,7 @@ function App() {
   const overdue = tasks.filter(
     (t) => t.end_date < today() && t.status !== "Done",
   );
-  const progress = tasks.length
-    ? Math.round(tasks.reduce((s, t) => s + t.progress, 0) / tasks.length)
-    : null;
+  const progress = weightedProgress(tasks);
   const navigate = (name: string) => {
     setView(name);
     setSelected("");
@@ -232,6 +299,10 @@ function App() {
     setTab(t);
   };
   function createProject(existing?: Project) {
+    if (user.role === "viewer") {
+      notify("Your workspace role has read-only access.");
+      return;
+    }
     setModal({
       title: existing ? "Edit project" : "Create a new project",
       fields: projectFields,
@@ -266,9 +337,51 @@ function App() {
         tasks: [
           { name: "title", label: "Task name", required: true },
           {
+            name: "assignee_id",
+            label: "Assigned member",
+            options: [
+              { value: "", label: "Unassigned" },
+              ...members.map((m) => ({ value: m.id, label: m.name })),
+            ],
+            help: "The member must have project access. Add access in Team & discussion.",
+          },
+          {
+            name: "milestone",
+            label: "Activity type",
+            options: [
+              { value: "0", label: "Task" },
+              { value: "1", label: "Milestone (zero duration)" },
+            ],
+          },
+          {
+            name: "weight",
+            label: "Progress weight",
+            type: "number",
+            min: 0.01,
+            max: 10000,
+            step: "any",
+            help: "Weighted progress uses this value; larger work can carry more weight.",
+          },
+          {
+            name: "effort_hours",
+            label: "Planned effort (hours)",
+            type: "number",
+            min: 0,
+            max: 100000,
+            step: "any",
+          },
+          {
+            name: "fixed_start",
+            label: "Schedule constraint",
+            options: [
+              { value: "0", label: "Schedule using dependencies" },
+              { value: "1", label: "Keep start date fixed" },
+            ],
+          },
+          {
             name: "owner",
             label: "Responsible person",
-            help: "A name for tracking; invitations arrive in Phase 2.",
+            help: "For external people, enter a responsibility label. Choosing an assigned member uses that person’s name and enables notifications and workload.",
           },
           {
             name: "start_date",
@@ -426,6 +539,11 @@ function App() {
     )[resource];
   function editResource(resource: string, row?: any, projectId?: string) {
     const id = projectId || selected;
+    const permission = projects.find((p) => p.project.id === id)?.permissions;
+    if (permission && !permission.canEdit) {
+      notify("Your project role has read-only access.");
+      return;
+    }
     setModal({
       title: `${row ? "Edit" : "Add"} ${{ tasks: "task", budget_items: "budget item", expenses: "expense", risks: "risk", updates: "progress update", documents: "document" }[resource as "tasks"] || resource}`,
       fields: resourceFields(resource),
@@ -439,11 +557,17 @@ function App() {
             status: resource === "tasks" ? "To do" : "Open",
             progress: 0,
             quantity: 1,
+            weight: 1,
+            effort_hours: 8,
+            milestone: 0,
+            fixed_start: 0,
             probability: 3,
             impact: 3,
           },
       save: async (values) => {
         const data = { ...values };
+        if (resource === "documents" && row)
+          data.expected_revision = row.revision;
         if (resource === "budget_items") {
           data.rateMinor = Math.round(data.rate * 100);
           delete data.rate;
@@ -510,24 +634,25 @@ function App() {
       setError((e as Error).message);
     }
   };
-  const actionIcons = (resource: string, row: any) => (
-    <div className="row-actions">
-      <button
-        className="icon-button"
-        aria-label={`Edit ${row.title || "update"}`}
-        onClick={() => editResource(resource, row)}
-      >
-        <Pencil size={15} />
-      </button>
-      <button
-        className="icon-button danger"
-        aria-label={`Delete ${row.title || "update"}`}
-        onClick={() => removeResource(resource, row)}
-      >
-        <Trash2 size={15} />
-      </button>
-    </div>
-  );
+  const actionIcons = (resource: string, row: any) =>
+    active?.permissions && !active.permissions.canEdit ? null : (
+      <div className="row-actions">
+        <button
+          className="icon-button"
+          aria-label={`Edit ${row.title || "update"}`}
+          onClick={() => editResource(resource, row)}
+        >
+          <Pencil size={15} />
+        </button>
+        <button
+          className="icon-button danger"
+          aria-label={`Delete ${row.title || "update"}`}
+          onClick={() => removeResource(resource, row)}
+        >
+          <Trash2 size={15} />
+        </button>
+      </div>
+    );
   function ProjectTable({ items }: { items: Bundle[] }) {
     return items.length ? (
       <div className="table-scroll">
@@ -544,12 +669,7 @@ function App() {
           </thead>
           <tbody>
             {items.map((p) => {
-              const done = p.tasks.length
-                ? Math.round(
-                    p.tasks.reduce((s, t) => s + t.progress, 0) /
-                      p.tasks.length,
-                  )
-                : null;
+              const done = weightedProgress(p.tasks);
               return (
                 <tr key={p.project.id}>
                   <td>
@@ -668,7 +788,20 @@ function App() {
             </div>
           </header>
           {authMode ? (
-            <Auth mode={authMode} setMode={setAuthMode} onSuccess={load} />
+            <Auth
+              mode={authMode}
+              setMode={setAuthMode}
+              onSuccess={load}
+              recoveryConfigured={config.recoveryConfigured}
+            />
+          ) : publicPage === "Templates" ? (
+            <main className="public-knowledge">
+              <Templates
+                projects={[]}
+                onCreateProject={() => setAuthMode("register")}
+                onSaved={async () => {}}
+              />
+            </main>
           ) : publicPage === "Knowledge Centre" ? (
             <main className="public-knowledge">
               <Suspense fallback={<p>Loading reference library…</p>}>
@@ -676,112 +809,11 @@ function App() {
               </Suspense>
             </main>
           ) : publicPage === "Home" ? (
-            <main className="landing">
-              <span className="eyebrow">
-                <i /> BUILT FOR AFRICAN AMBITION
-              </span>
-              <h1>
-                Big ideas.
-                <br />
-                Better plans.
-                <br />
-                <em>Real progress.</em>
-              </h1>
-              <p className="hero-tagline">
-                Plan Smarter. Control Costs.
-                <br />
-                Deliver Projects Successfully.
-              </p>
-              <p className="hero-description">
-                Your AI-powered project management partner for planning,
-                budgeting, monitoring, and reporting projects across Africa and
-                beyond.
-              </p>
-              <div className="button-group">
-                <button
-                  className="button primary large"
-                  onClick={() => setAuthMode("register")}
-                >
-                  Start your first project <ArrowUpRight size={18} />
-                </button>
-                <button
-                  className="button secondary large"
-                  onClick={() => setPublicPage("Features")}
-                >
-                  Explore features <ArrowRight size={17} />
-                </button>
-              </div>
-              <div className="hero-trust">
-                <span>
-                  <Check size={15} /> No credit card required
-                </span>
-                <span>
-                  <Check size={15} /> Your data, your workspace
-                </span>
-              </div>
-              <div className="hero-art">
-                <div className="art-top">
-                  <span className="dot" />
-                  <span>FROM IDEA TO IMPACT</span>
-                  <span>01 — 03</span>
-                </div>
-                <div className="art-orbit orbit-one" />
-                <div className="art-orbit orbit-two" />
-                <Globe2 className="globe" size={280} strokeWidth={0.6} />
-                <div className="art-card card-plan">
-                  <span className="art-icon">
-                    <Sparkles size={20} />
-                  </span>
-                  <div>
-                    Clarity from day one
-                    <small>Ideas become actionable plans</small>
-                  </div>
-                  <CheckCircle2 size={20} />
-                </div>
-                <div className="art-card card-budget">
-                  <span className="art-icon">
-                    <Wallet size={20} />
-                  </span>
-                  <div>
-                    Every cost accounted for
-                    <small>Transparent budgets. Better decisions.</small>
-                  </div>
-                </div>
-                <div className="art-bottom">
-                  <span>
-                    ROOTED IN AFRICA.
-                    <br />
-                    BUILT FOR WHAT’S NEXT.
-                  </span>
-                  <ArrowUpRight size={40} />
-                </div>
-              </div>
-              <section className="landing-features">
-                {[
-                  [
-                    FolderKanban,
-                    "A plan with purpose",
-                    "Bring your scope, tasks and milestones together.",
-                  ],
-                  [
-                    Wallet,
-                    "Confidence in every cost",
-                    "Track estimates, spending and budget variance.",
-                  ],
-                  [
-                    FileText,
-                    "Ready for the next conversation",
-                    "Turn recorded progress into professional reports.",
-                  ],
-                ].map(([Icon, title, text]: any) => (
-                  <article key={title}>
-                    <Icon size={22} />
-                    <h3>{title}</h3>
-                    <p>{text}</p>
-                  </article>
-                ))}
-              </section>
-            </main>
+            <PublicHome
+              onStart={() => setAuthMode("register")}
+              onLearn={() => setPublicPage("Knowledge Centre")}
+              onTemplates={() => setPublicPage("Templates")}
+            />
           ) : (
             <PublicPage
               page={publicPage}
@@ -815,9 +847,17 @@ function App() {
               </span>
               <span>
                 {user.organisation}
-                <small>Your organisation</small>
+                <small>
+                  {user.role} ·{" "}
+                  <button
+                    className="workspace-manage-link"
+                    onClick={() => navigate("Team & access")}
+                  >
+                    Switch / manage
+                  </button>
+                </small>
               </span>
-              <span className="workspace-badge">MVP</span>
+              <span className="workspace-badge">WORKSPACE</span>
             </div>
             <span className="nav-label">WORKSPACE</span>
             <nav>
@@ -888,11 +928,15 @@ function App() {
                 </span>
                 <button
                   className="icon-button"
-                  aria-label="View upcoming tasks and risks"
-                  onClick={() => navigate("Schedule")}
+                  aria-label="Open inbox"
+                  onClick={() => navigate("Inbox")}
                 >
                   <Bell size={19} />
-                  {overdue.length > 0 && <i className="notification-dot" />}
+                  {unreadCount > 0 && (
+                    <span className="inbox-count" aria-hidden="true">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
                 </button>
                 <span className="header-divider" />
                 <span className="avatar">
@@ -904,7 +948,7 @@ function App() {
                 </span>
                 <div className="user-label">
                   {user.name}
-                  <small>Organisation owner</small>
+                  <small>{user.role}</small>
                 </div>
               </div>
             </header>
@@ -940,6 +984,7 @@ function App() {
                     <div className="button-group">
                       <button
                         className="button secondary"
+                        disabled={!active.permissions.canEdit}
                         onClick={() => createProject(active.project)}
                       >
                         <Pencil size={15} /> Edit project
@@ -962,6 +1007,10 @@ function App() {
                       "Documents",
                       "Templates",
                       "AI Planner",
+                      "Schedule & baselines",
+                      "Team & discussion",
+                      "Document control",
+                      "Activity",
                     ].map((t) => (
                       <button
                         className={tab === t ? "active" : ""}
@@ -972,6 +1021,26 @@ function App() {
                       </button>
                     ))}
                   </div>
+                  {tab === "Schedule & baselines" && (
+                    <ScheduleWorkspace bundle={active} onRefresh={refresh} />
+                  )}
+                  {tab === "Team & discussion" && (
+                    <ProjectDiscussion
+                      bundle={active}
+                      user={user}
+                      onRefresh={refresh}
+                    />
+                  )}
+                  {tab === "Document control" && (
+                    <DocumentReviews
+                      bundle={active}
+                      user={user}
+                      onRefresh={refresh}
+                    />
+                  )}
+                  {tab === "Activity" && (
+                    <ProjectActivity projectId={active.project.id} />
+                  )}
                   {tab === "Overview" && (
                     <>
                       <div className="stats-grid">
@@ -1103,6 +1172,7 @@ function App() {
                           </button>
                           <button
                             className="button danger-outline"
+                            disabled={!active.permissions.canManage}
                             onClick={async () => {
                               if (
                                 confirm(
@@ -1175,6 +1245,7 @@ function App() {
                         <PanelHead
                           title="Budget line items"
                           action="Add budget item"
+                          disabled={!active.permissions.canEdit}
                           onClick={() => editResource("budget_items")}
                         />
                         {active.budget_items.length ? (
@@ -1234,6 +1305,7 @@ function App() {
                         <PanelHead
                           title="Recorded expenses"
                           action="Record expense"
+                          disabled={!active.permissions.canEdit}
                           onClick={() => editResource("expenses")}
                         />
                         {active.expenses.length ? (
@@ -1282,6 +1354,7 @@ function App() {
                       <PanelHead
                         title="Tasks & schedule"
                         action="Add task"
+                        disabled={!active.permissions.canEdit}
                         onClick={() => editResource("tasks")}
                       />
                       {active.tasks.length ? (
@@ -1340,6 +1413,7 @@ function App() {
                       <PanelHead
                         title="Risk register"
                         action="Add risk"
+                        disabled={!active.permissions.canEdit}
                         onClick={() => editResource("risks")}
                       />
                       {active.risks.length ? (
@@ -1393,6 +1467,7 @@ function App() {
                       <PanelHead
                         title="Progress updates"
                         action="Record update"
+                        disabled={!active.permissions.canEdit}
                         onClick={() => editResource("updates")}
                       />
                       {active.updates.length ? (
@@ -1476,6 +1551,7 @@ function App() {
                         <PanelHead
                           title="Reports & documents"
                           action="Create document"
+                          disabled={!active.permissions.canEdit}
                           onClick={() => editResource("documents")}
                         />
                         {active.documents.length ? (
@@ -1590,6 +1666,7 @@ function App() {
                         </button>
                         <button
                           className="button secondary"
+                          disabled={!active.permissions.canEdit}
                           onClick={() => editResource("documents")}
                         >
                           Write a plan manually
@@ -1898,14 +1975,59 @@ function App() {
                     </button>
                   </div>
                 </>
+              ) : view === "Team & access" ? (
+                <TeamWorkspace user={user} onSwitch={load} />
+              ) : view === "Inbox" ? (
+                <Inbox
+                  onUnreadCount={setUnreadCount}
+                  tasks={tasks}
+                  user={user}
+                  onOpen={(id) => {
+                    const p = projects.find((x) => x.project.id === id);
+                    if (p) open(p, "Team & discussion");
+                  }}
+                />
               ) : view === "Knowledge Centre" ? (
                 <Suspense fallback={<p>Loading reference library…</p>}>
                   <KnowledgeCentre
+                    syncAccount
+                    onApplyLearning={(lessonId) => {
+                      const map: Record<string, string> = {
+                        value: "business-case",
+                        governance: "charter",
+                        scope: "wbs",
+                        schedule: "workplan",
+                        estimation: "budget",
+                        cost: "budget",
+                        evm: "budget",
+                        risk: "risk",
+                        quality: "plan",
+                        change: "plan",
+                        stakeholders: "charter",
+                        agile: "plan",
+                        flow: "workplan",
+                        hybrid: "plan",
+                        ai: "plan",
+                        data: "monitoring",
+                        benefits: "monitoring",
+                        procurement: "procurement",
+                        operations: "workplan",
+                        inventory: "procurement",
+                        lean: "lessons",
+                        reliability: "risk",
+                        sustainability: "business-case",
+                        handover: "closure",
+                      };
+                      setTemplateFocus(map[lessonId] || "plan");
+                      navigate("Templates");
+                    }}
                     storageKey={`pma-knowledge-saved-${user.id}`}
                   />
                 </Suspense>
               ) : view === "Templates" ? (
                 <Templates
+                  key={templateFocus}
+                  initialTemplateId={templateFocus}
                   projects={projects}
                   onCreateProject={() => createProject()}
                   onSaved={async () => {
@@ -1928,7 +2050,7 @@ function App() {
                         ["Country", user.country],
                         ["Industry", user.industry],
                         ["Preferred currency", user.currency],
-                        ["Role", "Organisation owner"],
+                        ["Role", user.role],
                       ].map(([k, v]) => (
                         <div key={k}>
                           <dt>{k}</dt>
@@ -1937,9 +2059,8 @@ function App() {
                       ))}
                     </dl>
                     <p className="muted">
-                      Account and organisation editing, invitations and
-                      subscriptions are planned for later phases. No payment
-                      information is collected in this MVP.
+                      Manage invitations and workspace roles in Team & access.
+                      Payment information is not collected by this application.
                     </p>
                     <button
                       className="button secondary"
@@ -1958,6 +2079,7 @@ function App() {
                       <LogOut size={16} /> Sign out
                     </button>
                   </section>
+                  <AccountReadiness config={config} user={user} />
                 </>
               ) : view === "Help" ? (
                 <>
@@ -1990,8 +2112,9 @@ function App() {
                     <p>
                       Budget = subtotal + contingency + tax. Tax applies after
                       contingency. Remaining budget and variance = budget −
-                      actual spend. Task progress is a simple average, not a
-                      forecast. Different currencies are never combined.
+                      actual spend. Task progress uses the task weights you set
+                      and is not a completion forecast. Different currencies are
+                      never combined.
                     </p>
                     <h3>AI and data</h3>
                     <p>
@@ -2076,7 +2199,7 @@ function App() {
                                   {
                                     "AI Project Planner": "AI Planner",
                                     "Budget & Finance": "Budget",
-                                    Schedule: "Tasks",
+                                    Schedule: "Schedule & baselines",
                                     "Risk Management": "Risks",
                                     "Reports & Documents": "Documents",
                                   }[view],
@@ -2201,12 +2324,14 @@ function PanelHead({
   action,
   onClick,
   extra,
+  disabled,
 }: {
   title: string;
   subtitle?: string;
   action?: string;
   onClick?: () => void;
   extra?: React.ReactNode;
+  disabled?: boolean;
 }) {
   return (
     <div className="panel-head">
@@ -2216,7 +2341,7 @@ function PanelHead({
       </div>
       {extra}
       {action && (
-        <button className="text-link" onClick={onClick}>
+        <button className="text-link" onClick={onClick} disabled={disabled}>
           {action}
           <ArrowRight size={15} />
         </button>
@@ -2354,10 +2479,20 @@ function FormModal({ modal, close }: { modal: Modal; close: () => void }) {
                 <select
                   aria-label={f.label}
                   name={f.name}
-                  defaultValue={modal.initial?.[f.name] || f.options[0]}
+                  defaultValue={
+                    modal.initial?.[f.name] ??
+                    (typeof f.options[0] === "string"
+                      ? f.options[0]
+                      : f.options[0].value)
+                  }
                 >
                   {f.options.map((o) => (
-                    <option key={o}>{o}</option>
+                    <option
+                      key={typeof o === "string" ? o : o.value}
+                      value={typeof o === "string" ? o : o.value}
+                    >
+                      {typeof o === "string" ? o : o.label}
+                    </option>
                   ))}
                 </select>
               ) : f.type === "textarea" ? (
@@ -2413,10 +2548,12 @@ function Auth({
   mode,
   setMode,
   onSuccess,
+  recoveryConfigured = false,
 }: {
   mode: string;
   setMode: (m: string) => void;
   onSuccess: () => Promise<void>;
+  recoveryConfigured?: boolean;
 }) {
   const [error, setError] = useState(""),
     [message, setMessage] = useState(""),
@@ -2448,9 +2585,11 @@ function Auth({
             ? "Make space for great work."
             : mode === "forgot"
               ? "Let’s get you back in."
-              : mode === "reset"
-                ? "Choose a new password."
-                : "Good to have you back."}
+              : mode === "recover-code"
+                ? "Recover with your private kit."
+                : mode === "reset"
+                  ? "Choose a new password."
+                  : "Good to have you back."}
         </h1>
         <p>
           {register
@@ -2480,6 +2619,12 @@ function Auth({
               if (mode === "forgot") {
                 const r = await api("/auth/forgot", "POST", data);
                 setMessage(r.message);
+              } else if (mode === "recover-code") {
+                await api("/auth/recover-code", "POST", data);
+                setMode("login");
+                setMessage(
+                  "Password reset. Sign in with your new password. All previous recovery codes are now invalid.",
+                );
               } else if (mode === "reset") {
                 await api("/auth/reset", "POST", {
                   password: data.password,
@@ -2533,6 +2678,18 @@ function Auth({
               />
             </label>
           )}
+          {mode === "recover-code" && (
+            <label>
+              One-time recovery code
+              <input
+                name="code"
+                required
+                pattern="[a-f0-9]{32}"
+                maxLength={32}
+                autoComplete="off"
+              />
+            </label>
+          )}
           {mode !== "forgot" && (
             <label>
               Password
@@ -2579,19 +2736,38 @@ function Auth({
               </label>
             </div>
           )}
-          <button className="button primary large" disabled={busy}>
+          {mode === "forgot" && !recoveryConfigured && (
+            <p className="tool-notice">
+              Email recovery is not enabled by the deployment operator. Use a
+              previously saved recovery code through the link below.
+            </p>
+          )}
+          <button
+            className="button primary large"
+            disabled={busy || (mode === "forgot" && !recoveryConfigured)}
+          >
             {busy ? <LoaderCircle size={17} className="spin" /> : null}
             {register
               ? "Create your workspace"
               : mode === "forgot"
                 ? "Send recovery email"
-                : mode === "reset"
-                  ? "Update password"
-                  : "Sign in"}
+                : mode === "recover-code"
+                  ? "Reset password with code"
+                  : mode === "reset"
+                    ? "Update password"
+                    : "Sign in"}
             <ArrowRight size={17} />
           </button>
         </form>
         <div className="auth-links">
+          {(mode === "login" || mode === "forgot") && (
+            <button
+              className="text-link"
+              onClick={() => setMode("recover-code")}
+            >
+              Use a saved recovery code
+            </button>
+          )}
           {mode === "login" ? (
             <>
               <button onClick={() => setMode("forgot")}>
@@ -2714,7 +2890,7 @@ function PublicPage({
       [
         "The current release does not collect payments or enforce paid subscriptions.",
         "Free, Professional and Business tiers are planned. Prices and market availability have not been set.",
-        "Team invitations, expanded permissions and payment integration are later-phase features.",
+        "Workspace roles, project permissions and collaboration are available. Subscription billing and payment processing are not enabled.",
       ],
     ],
     About: [
@@ -2729,7 +2905,7 @@ function PublicPage({
       [
         "Does AI invent market prices? No. AI is instructed to flag missing data and label estimates. Always review its drafts.",
         "Which currencies are supported? NGN, USD, GHS and KES. Each project keeps its own currency; this MVP does not convert currencies.",
-        "Can my team join? This release supports one owner per organisation. Collaborative roles and invitations are planned.",
+        "Can my team join? Owners and admins can create single-use invitation links. Workspace and project roles determine access, editing and approval permissions.",
         "Is AI required? No. You can manage budgets, tasks, risks and documents manually. AI requires a server-side API key.",
       ],
     ],

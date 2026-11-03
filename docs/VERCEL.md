@@ -64,3 +64,17 @@ Do not pass raw secrets in command arguments or commit downloaded environment fi
 ## Local validation
 
 `npm test` exercises the SQLite development path. `npm run test:postgres` runs the same API suite and persistent rate-limit tests against an embedded PostgreSQL-compatible engine, including organisation-schema isolation. This validates SQL/application behavior, not live managed-database networking, credentials, TLS or Vercel's deployed runtime. `npm run build` checks types and produces frontend assets. Browser checks run with `npm run test:e2e`.
+
+
+## Professional workspace release
+
+This release runs additive, versioned migrations on existing tenant schemas and
+creates private collaboration/auth tables. No existing project, account or
+organisation IDs are moved. Existing owners acquire memberships lazily on
+sign-in. Test invitations, project permissions, versions, scheduling and learning
+against the hosted service after deployment. Use synthetic records for checks.
+
+Configure SUPPORT_EMAIL as a monitored address. AI_API_KEY and SMTP credentials
+must be supplied by the operator; no live access is claimed without verification.
+Account recovery kits work independently of email. Detailed backup, restore,
+monitoring and rollback instructions are in [Operations](OPERATIONS.md).

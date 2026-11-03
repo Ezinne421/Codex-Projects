@@ -47,3 +47,9 @@ and follow its comparison links to explore the difference. Filtered CSV exports
 include the new guidance, comparisons and further-reading links.
 The expansion covers advanced planning, contracts, portfolios, leadership,
 digital delivery, operational simulation, industry practice and African context.
+
+PROFESSIONAL WORKSPACE DESIGN
+This edition uses the new editorial identity with embedded, licensed fonts.
+Team invitations, access roles, schedule baselines, document approvals and
+account-synced learning require the hosted application. This local file does not
+simulate shared online access or send invitations. Keep regular local backups.

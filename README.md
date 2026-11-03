@@ -1,6 +1,6 @@
 # ProjectManager AI Africa
 
-A functional Phase 1 project-management MVP: React + TypeScript + Tailwind, Express, SQLite for local development, and managed PostgreSQL for Vercel. Empty accounts start with real empty states. No sample project progress or financial metrics are seeded.
+A professional project-management workspace: React + TypeScript + Tailwind, Express, SQLite for local development, and managed PostgreSQL for Vercel. Empty accounts start with real empty states. No sample project progress or financial metrics are seeded.
 
 Read [the implementation plan and database design](docs/IMPLEMENTATION.md).
 
@@ -20,7 +20,7 @@ When `DATABASE_URL` is unset, local development data persists in `.data/` (or th
 
 ## What works
 
-- Registration, sign-in, seven-day HTTP-only sessions, logout and persistent accounts; password recovery when SMTP is configured.
+- Registration, sign-in, seven-day HTTP-only sessions, logout, persistent accounts and one-time recovery kits; email password recovery when SMTP is configured.
 - Organisation-isolated project creation, editing, deletion and plan duplication. Duplication copies planned tasks, budget items, risks and documents; it excludes expenses and progress updates.
 - Budgets with quantity/rate calculations, contingency, tax, actual expenses, remaining budget, variance, utilisation and non-persistent what-if scenarios. Money is stored in integer minor units; each line rounds once. Tax applies to subtotal plus contingency. The configured tax is a user assumption, not tax advice.
 - NGN, USD, GHS and KES, kept separate. There are no fabricated currency conversions. Dashboard financial totals include only the selected currency.
@@ -80,9 +80,23 @@ Logs include error categories and upstream status, not passwords, AI keys, promp
 
 ### Explicit release boundaries
 
-This is a production-oriented starting point, not a completed commercial service. Live AI and SMTP need external configuration and testing. Email ownership verification, MFA, collaborative memberships/roles, invitations, automatic dependency scheduling, earned-value baselines/CPI/SPI, external exchange rates, spreadsheet import, usage-based subscriptions and payments are not implemented. It does not charge users or claim successful payments. No fabricated testimonials or client logos are displayed.
+This release includes shared workspace/project roles, invitation links, dependencies,
+calendar-based schedule previews, baselines, document revision/review, in-app
+notifications and account-synced learning. Live AI and email delivery still need
+secure provider configuration and actual end-to-end testing. One-time recovery
+kits provide a separate, tested recovery option without SMTP.
 
-This MVP enforces tenant isolation using separate SQLite databases plus server-side membership checks, rather than claiming PostgreSQL RLS. Managed PostgreSQL mode uses separate organisation schemas and tested server-side membership checks. It does not claim database row-level-security policies. See the Vercel guide for deployment and provider backup requirements. Operational monitoring, off-host backups, final privacy/terms, support contact, account-deletion policy and disaster-recovery drills must be configured by the deployment owner before a public commercial launch.
+Email ownership verification, MFA, resource levelling, project-derived earned
+value baselines/CPI/SPI, external exchange rates, spreadsheet import, billing and
+payments remain outside this release. It does not charge users or invent
+successful provider connections. PostgreSQL schemas are private with API-role
+privileges revoked and RLS enabled; the privileged server enforces membership and
+project permissions. SQLite remains a single-node development option.
+
+The deployment owner must configure backups and verify a restore, monitoring
+and alerts, real support/privacy contacts, retention/account deletion and final
+legal terms before a commercial launch. These are not asserted to be configured
+by this code release. See [Operations](docs/OPERATIONS.md).
 
 ### Knowledge Centre
 
@@ -161,3 +175,31 @@ Keep original summaries, model assumptions and illustrative examples together.
 Do not turn context-dependent contract or country requirements into universal
 rules. Use the relevant authoritative reference and actual governing framework
 for formal decisions. References are further reading, not attributed quotations.
+
+
+### Professional workspace upgrade
+
+The public site and application have a new editorial identity: self-hosted
+Manrope/Newsreader typography, a custom mark, deep plum, warm paper and citrus,
+original layouts and licensed project photography. PMI's professional tone is a
+reference; its branding and proprietary fonts are not copied. Asset provenance
+is documented in [ASSETS](docs/ASSETS.md).
+
+- **Team & access:** create one-use, email-matched invitation links; manage roles,
+  capacity and workspace switching without losing an original workspace.
+- **Team & discussion:** grant project access, post discussions and mentions;
+  task assignments use actual members and generate inbox notifications.
+- **Schedule & baselines:** define four dependency types and working-day lags,
+  preview critical path/float, resolve conflicts, apply a current preview and
+  capture immutable approved snapshots. Workload reports capacity separately.
+- **Document control / Activity:** retain content revisions, submit/review
+  specific versions, approve or request changes and inspect recorded history.
+- **Knowledge Centre:** signed-in learning progress syncs across devices and
+  completed lessons lead to a relevant project template. The public/offline
+  editions remain local.
+- **Settings & account:** generate private recovery codes, download the kit and
+  inspect actual AI/email/support readiness. Email credentials are not invented.
+
+Database changes are additive and versioned; tests preserve original records.
+CI checks SQLite, PostgreSQL semantics, build and browser workflows. See
+[Operations](docs/OPERATIONS.md) for deployment and real-world release boundaries.

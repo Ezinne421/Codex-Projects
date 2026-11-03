@@ -118,7 +118,9 @@ test("register, create, budget, task, risk, document, export, logout and return"
 });
 test("landing page fits mobile and desktop", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /Big ideas/ })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /The work matters/ }),
+  ).toBeVisible();
   await page.screenshot({
     path: "/tmp/projectmanager-landing.png",
     fullPage: true,

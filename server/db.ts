@@ -1,8 +1,19 @@
+import {
+  tenantMigrations as versionedTenantMigrations,
+  authMigrations,
+  migrateSqlite,
+} from "./migrations.js";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { mkdirSync, chmodSync } from "node:fs";
 import { resolve, join } from "node:path";
 import type { Request, Response, NextFunction } from "express";
-import { authSchema, tenantSchema } from "./schema.js";
+import {
+  authSchema,
+  tenantSchema,
+  workspaceAuthSchema,
+  workspaceTenantSchema,
+  sharedMigrationSchema,
+} from "./schema.js";
 import { createRetryableInitializer } from "./database-initialization.js";
 import { databaseErrorTag } from "./database-error.js";
 import { verifiedDatabaseConfig } from "./database-url.js";
@@ -46,6 +57,12 @@ const authTables = [
   "sessions",
   "reset_tokens",
   "request_limits",
+  "memberships",
+  "invitations",
+  "session_workspaces",
+  "learning_progress",
+  "recovery_codes",
+  "schema_migrations",
 ];
 const tenantTables = [
   "projects",
@@ -57,6 +74,13 @@ const tenantTables = [
   "documents",
   "ai_history",
   "audit_logs",
+  "project_members",
+  "task_dependencies",
+  "project_baselines",
+  "document_versions",
+  "comments",
+  "notifications",
+  "schema_migrations",
 ];
 let sqliteRoot: any, pool: any, pglite: any, DatabaseSync: any;
 let queue = Promise.resolve();
@@ -80,7 +104,7 @@ async function initializeDatabase() {
       await migrate(
         { query: (s, v) => pglite.query(s, v) },
         authNamespace,
-        authSchema,
+        authSchema + workspaceAuthSchema + sharedMigrationSchema,
       );
     } else if (pgMode) {
       const { Pool, types } = await import("pg");
@@ -112,7 +136,11 @@ async function initializeDatabase() {
       const conn = await pool.connect();
       try {
         initializationStage = "schema";
-        await migrate(conn, authNamespace, authSchema);
+        await migrate(
+          conn,
+          authNamespace,
+          authSchema + workspaceAuthSchema + sharedMigrationSchema,
+        );
       } finally {
         conn.release();
       }
@@ -121,7 +149,8 @@ async function initializeDatabase() {
       mkdirSync(dataDir, { recursive: true, mode: 0o700 });
       chmodSync(dataDir, 0o700);
       sqliteRoot = openSqlite(join(dataDir, "auth.sqlite"));
-      sqliteRoot.exec(authSchema);
+      sqliteRoot.exec(authSchema + workspaceAuthSchema + sharedMigrationSchema);
+      migrateSqlite(sqliteRoot, authMigrations);
     }
     initializationStage = "ready";
   } catch (error) {
@@ -206,6 +235,24 @@ async function migrate(
       .map((x) => x.trim())
       .filter(Boolean))
       await conn.query(pgSql(statement, schema));
+    const migrations =
+      schema === authNamespace ? authMigrations : versionedTenantMigrations;
+    for (const migration of migrations) {
+      const found = await conn.query(
+        pgSql("SELECT version FROM schema_migrations WHERE version=?", schema),
+        [migration.version],
+      );
+      if (found.rows.length) continue;
+      for (const statement of migration.sql
+        .split(";")
+        .map((x) => x.trim())
+        .filter(Boolean))
+        await conn.query(pgSql(statement, schema));
+      await conn.query(
+        pgSql("INSERT INTO schema_migrations(version) VALUES(?)", schema),
+        [migration.version],
+      );
+    }
     // Keep application schemas private, including on Supabase installations
     // whose public data API grants privileges to anon/authenticated roles.
     const apiRoles = await conn.query(
@@ -403,7 +450,8 @@ export async function tenantDb(orgId: string): Promise<Database> {
     throw Error("Unknown organisation");
   if (!pgMode) {
     const db = openSqlite(join(dataDir, `org-${orgId}.sqlite`));
-    db.exec(tenantSchema);
+    db.exec(tenantSchema + workspaceTenantSchema + sharedMigrationSchema);
+    migrateSqlite(db, versionedTenantMigrations);
     return adapter("", db);
   }
   const schema = "pm_org_" + orgId.replaceAll("-", "_");
@@ -413,7 +461,11 @@ export async function tenantDb(orgId: string): Promise<Database> {
       throw Error("Tenant access requires an active authenticated request");
     scope.pending++;
     try {
-      await migrate(scope.connection, schema, tenantSchema);
+      await migrate(
+        scope.connection,
+        schema,
+        tenantSchema + workspaceTenantSchema + sharedMigrationSchema,
+      );
       tenantMigrations.add(schema);
     } finally {
       scope.pending--;
